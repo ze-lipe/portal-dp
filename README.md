@@ -46,7 +46,8 @@ registrada e validada; qualquer alteração futura no conteúdo aprovado invalid
 vínculo e exige nova aprovação.
 
 O CI acrescenta SAST, política de licenças, varredura da configuração e da imagem,
-e executa API e worker como UID `10001` usando o mesmo artefato OCI. O smoke
+e executa API e worker em runtime distroless como UID/GID `65532`, usando o mesmo
+artefato OCI. O smoke
 completo depende de Docker e PostgreSQL real; ele não é simulado em uma máquina
 que não ofereça esses serviços.
 
@@ -56,6 +57,11 @@ de acesso estão descritos em `docs/EVIDENCE-REPOSITORY.md`. Esse fechamento nã
 aprova o manifesto ASVS nem substitui homologação nominal.
 O artifact de 90 dias é apenas transporte; o gate de completude permanece
 fechado até existir recibo verificável do repositório durável.
+
+O encerramento nominal da etapa usa o template fail-closed descrito em
+`docs/ETP-00-ACCEPTANCE.md`. O template permanece pendente até o pipeline real
+produzir o artefato, as evidências serem conferidas e as duas áreas responsáveis
+registrarem o aceite da execução.
 
 ## Como evolucoes futuras entram no sistema
 

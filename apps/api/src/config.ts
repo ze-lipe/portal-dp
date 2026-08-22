@@ -79,11 +79,10 @@ export function loadConfig(
   environment: NodeJS.ProcessEnv = process.env,
 ): AppConfig {
   const parsed = environmentSchema.parse(environment);
-  if (
-    parsed.NODE_ENV === "production" &&
-    parsed.ETP00_SYNTHETIC_PROOF_ENABLED
-  ) {
-    throw new Error("ETP00 synthetic proof must be disabled in production");
+  if (parsed.NODE_ENV !== "test" && parsed.ETP00_SYNTHETIC_PROOF_ENABLED) {
+    throw new Error(
+      "ETP00 synthetic proof can only be enabled in the test environment",
+    );
   }
   const corsEnabled =
     parsed.API_CORS_ENABLED === undefined

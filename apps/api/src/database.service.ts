@@ -1,6 +1,15 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { OnApplicationShutdown, OnModuleInit } from "@nestjs/common";
-import { assertLimitedServiceRole } from "@portal-dp/database";
+import type {
+  SyntheticEnterpriseCommand,
+  SyntheticEnterpriseResult,
+} from "@portal-dp/contracts";
+import {
+  assertLimitedServiceRole,
+  executeSyntheticEnterpriseCommand,
+  type SyntheticProofInfrastructureIds,
+  type SyntheticProofPreconditions,
+} from "@portal-dp/database";
 import { Pool } from "pg";
 
 import { APP_CONFIG, type AppConfig } from "./config.js";
@@ -34,6 +43,19 @@ export class DatabaseService implements OnModuleInit, OnApplicationShutdown {
 
   async probe(): Promise<void> {
     await this.#pool.query("select 1 as ready");
+  }
+
+  async executeSyntheticCommand(
+    command: SyntheticEnterpriseCommand,
+    ids: SyntheticProofInfrastructureIds,
+    preconditions: SyntheticProofPreconditions,
+  ): Promise<SyntheticEnterpriseResult> {
+    return executeSyntheticEnterpriseCommand(
+      this.#pool,
+      command,
+      ids,
+      preconditions,
+    );
   }
 
   async onApplicationShutdown(): Promise<void> {

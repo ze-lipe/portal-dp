@@ -1443,13 +1443,15 @@ O documento poderá ser aprovado quando o usuário confirmar que:
 - as definições da seção 39 podem aguardar a preparação da produção;
 - a estratégia completa de testes/homologação está no Documento 22 e a implantação/retorno seguro está no Documento 23;
 - o Documento 21A contém exatamente os mesmos 440 IDs dos Documentos 17, 18A e 20A, cada um com propriedade e etapa únicas;
-- nenhum código de produção será iniciado antes da aprovação dos Documentos 21, 22 e 23.
+- na data desta aprovação, nenhum código de produção havia sido iniciado; o início
+  somente seria autorizado após a aprovação dos Documentos 21, 22 e 23.
 
 ---
 
-# 42. Continuidade vigente
+# 42. Continuidade definida na aprovação
 
-Os pacotes 22/22A–22D e 23/23A–23D estão aprovados. A continuidade é:
+Com os pacotes 22/22A–22D e 23/23A–23D aprovados, a continuidade definida
+naquele momento foi:
 
 1. preparar o repositório e iniciar a `ETP-00`;
 2. desenvolver por etapas seguindo este Documento 21;
@@ -1459,5 +1461,5 @@ Os pacotes 22/22A–22D e 23/23A–23D estão aprovados. A continuidade é:
 ---
 
 **Situação final desta versão:** Documentos 21 e 21A aprovados integralmente pelo usuário em 22/08/2026.  
-**Continuidade vigente:** preparar o repositório e iniciar a `ETP-00 — Baseline executável`.  
-**Código de produção:** ainda não iniciado.
+**Continuidade na data da aprovação:** preparar o repositório e iniciar a `ETP-00 — Baseline executável`; o código de produção ainda não havia sido iniciado.  
+**Checkpoint posterior:** baseline em implementação controlada conforme `docs/ETP-00.md`; nenhuma implantação de produção foi iniciada.

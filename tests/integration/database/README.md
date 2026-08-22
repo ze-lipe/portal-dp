@@ -22,3 +22,13 @@ A prova vertical também exige `DATABASE_URL` autenticando como
 `portal_dp_worker_login`. Esses logins não possuem privilégios próprios e podem
 assumir somente o papel lógico limitado correspondente; o bootstrap nunca é
 reutilizado pela API ou pelo worker.
+
+O teste também constrói e abre a tela pública em Chrome, Edge ou Chromium real,
+chama `/api/v1/sessao` pela própria página e confere o resultado renderizado. O
+navegador não é baixado durante a execução: o executor deve fornecê-lo ou definir
+`BROWSER_EXECUTABLE_PATH`. A suíte espera que `pnpm build` tenha sido executado
+antes dela, como ocorre no pipeline da ETP-00.
+
+O sandbox nativo do navegador permanece ligado por padrão. Apenas um executor de
+teste já isolado que não consiga iniciá-lo pode definir
+`BROWSER_DISABLE_SANDBOX=true`; essa exceção não é configuração de produção.

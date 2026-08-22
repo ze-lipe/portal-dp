@@ -141,4 +141,5 @@ Uma tela somente é aceita quando:
 ---
 
 **Situação desta versão:** 60 linhas revisadas e aprovadas pelo usuário.  
-**Continuidade vigente:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`; execução permanece `NOT_RUN_PLANNED`.
+**Continuidade na data da aprovação:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`.  
+**Checkpoint posterior:** baseline em implementação controlada conforme `docs/ETP-00.md`; os gates formais permanecem `NOT_RUN_PLANNED`.

@@ -8,7 +8,23 @@
       "path": "/api/v1/sessao",
       "owner": "BK-010",
       "stage": "ETP-00",
-      "authentication": "PUBLICA_NEUTRA"
+      "authentication": "PUBLICA_NEUTRA",
+      "responseStatuses": ["200", "500"]
+    },
+    {
+      "operationId": "API-ETP00-001",
+      "method": "PATCH",
+      "path": "/api/v1/etp00/provas-sinteticas/{registroId}",
+      "owner": "BK-007",
+      "stage": "ETP-00",
+      "authentication": "PROVA_SINTETICA_NAO_PRODUCAO",
+      "responseStatuses": ["200", "202", "400", "403", "404", "409", "500"],
+      "responseResultValues": [
+        "CONCLUIDA",
+        "REPETICAO_RECONCILIADA",
+        "EM_PROCESSAMENTO",
+        "CHAVE_NATURAL_EXISTENTE"
+      ]
     },
     {
       "operationId": "API-UTL-003",
@@ -16,7 +32,8 @@
       "path": "/health/live",
       "owner": "BK-012",
       "stage": "ETP-00",
-      "authentication": "SONDA_INTERNA"
+      "authentication": "SONDA_INTERNA",
+      "responseStatuses": ["200"]
     },
     {
       "operationId": "API-UTL-004",
@@ -24,7 +41,8 @@
       "path": "/health/ready",
       "owner": "BK-012",
       "stage": "ETP-00",
-      "authentication": "SONDA_INTERNA"
+      "authentication": "SONDA_INTERNA",
+      "responseStatuses": ["200", "503"]
     }
   ]
 }

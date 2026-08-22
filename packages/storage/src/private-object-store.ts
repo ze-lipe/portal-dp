@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { link, mkdir, open, readFile, unlink } from "node:fs/promises";
+import { constants } from "node:fs";
+import { link, lstat, mkdir, open, unlink } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 
 const opaqueId =
@@ -41,6 +42,15 @@ export class PrivateObjectIntegrityError extends Error {
   }
 }
 
+export class PrivateObjectSecurityError extends Error {
+  readonly safeCode = "PRIVATE_OBJECT_STORAGE_UNSAFE";
+
+  constructor() {
+    super("Private object storage security validation failed");
+    this.name = "PrivateObjectSecurityError";
+  }
+}
+
 export class LocalPrivateObjectStore implements PrivateObjectStore {
   readonly #root: string;
 
@@ -58,7 +68,10 @@ export class LocalPrivateObjectStore implements PrivateObjectStore {
 
     const path = this.#safePath(input.companyId, input.objectId);
     const directory = resolve(path, "..");
+    await mkdir(this.#root, { recursive: true, mode: 0o700 });
+    await this.#assertSecureDirectory(this.#root);
     await mkdir(directory, { recursive: true, mode: 0o700 });
+    await this.#assertSecureDirectory(directory);
     const temporaryPath = resolve(
       directory,
       `.${input.objectId}.${randomUUID()}.tmp`,
@@ -78,8 +91,15 @@ export class LocalPrivateObjectStore implements PrivateObjectStore {
       }
 
       await link(temporaryPath, path);
+      // O fsync do arquivo não torna a entrada de diretório durável sozinho.
+      // No runtime Linux, sincronizamos a criação do link antes de remover o
+      // temporário; uma queda entre essas operações deixa ao menos uma cópia
+      // íntegra e endereçável do objeto.
+      await syncDirectory(directory);
       await unlink(temporaryPath);
+      await syncDirectory(directory);
       temporaryCreated = false;
+      await this.#assertSecureObject(path);
       return {
         objectId: input.objectId,
         sha256: actualHash,
@@ -89,11 +109,13 @@ export class LocalPrivateObjectStore implements PrivateObjectStore {
     } catch (error) {
       if (temporaryCreated) {
         await unlink(temporaryPath).catch(() => undefined);
+        await syncDirectory(directory).catch(() => undefined);
       }
       if (!isAlreadyExists(error)) throw error;
       // Destino existente só é repetição idempotente quando possui o mesmo hash;
       // qualquer divergência é uma falha de integridade.
-      const existing = await readFile(path);
+      await this.#assertSecureDirectory(directory);
+      const existing = await this.#readSecureObject(path);
       const existingHash = createHash("sha256").update(existing).digest("hex");
       if (existingHash !== actualHash) throw new PrivateObjectIntegrityError();
       return {
@@ -114,7 +136,76 @@ export class LocalPrivateObjectStore implements PrivateObjectStore {
     // A autorização precede a leitura e a resposta neutra não revela se um
     // objeto pertencente a outra empresa realmente existe.
     if (!(await authorize(input))) throw new Error("Private object not found");
-    return readFile(this.#safePath(input.companyId, input.objectId));
+    const path = this.#safePath(input.companyId, input.objectId);
+    await this.#assertSecureDirectory(this.#root);
+    await this.#assertSecureDirectory(resolve(path, ".."));
+    return this.#readSecureObject(path);
+  }
+
+  async #assertSecureDirectory(path: string): Promise<void> {
+    const details = await lstat(path).catch(() => null);
+    const identity = currentProcessIdentity();
+    if (!details?.isDirectory() || details.isSymbolicLink()) {
+      throw new PrivateObjectSecurityError();
+    }
+    if (
+      process.platform !== "win32" &&
+      (!identity ||
+        (details.mode & 0o777) !== 0o700 ||
+        details.uid !== identity.uid ||
+        details.gid !== identity.gid)
+    ) {
+      throw new PrivateObjectSecurityError();
+    }
+  }
+
+  async #assertSecureObject(path: string): Promise<void> {
+    const handle = await open(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW,
+    ).catch(() => null);
+    if (!handle) throw new PrivateObjectSecurityError();
+    try {
+      const details = await handle.stat();
+      const identity = currentProcessIdentity();
+      if (
+        !details.isFile() ||
+        (process.platform !== "win32" &&
+          (!identity ||
+            (details.mode & 0o777) !== 0o600 ||
+            details.uid !== identity.uid ||
+            details.gid !== identity.gid))
+      ) {
+        throw new PrivateObjectSecurityError();
+      }
+    } finally {
+      await handle.close();
+    }
+  }
+
+  async #readSecureObject(path: string): Promise<Uint8Array> {
+    const handle = await open(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW,
+    ).catch(() => null);
+    if (!handle) throw new PrivateObjectSecurityError();
+    try {
+      const details = await handle.stat();
+      const identity = currentProcessIdentity();
+      if (
+        !details.isFile() ||
+        (process.platform !== "win32" &&
+          (!identity ||
+            (details.mode & 0o777) !== 0o600 ||
+            details.uid !== identity.uid ||
+            details.gid !== identity.gid))
+      ) {
+        throw new PrivateObjectSecurityError();
+      }
+      return await handle.readFile();
+    } finally {
+      await handle.close();
+    }
   }
 
   #assertOpaqueId(value: string, field: string): void {
@@ -127,6 +218,28 @@ export class LocalPrivateObjectStore implements PrivateObjectStore {
     if (!candidate.startsWith(`${this.#root}${sep}`))
       throw new Error("Unsafe private object path");
     return candidate;
+  }
+}
+
+function currentProcessIdentity(): { uid: number; gid: number } | null {
+  if (
+    typeof process.getuid !== "function" ||
+    typeof process.getgid !== "function"
+  ) {
+    return null;
+  }
+  return { uid: process.getuid(), gid: process.getgid() };
+}
+
+async function syncDirectory(path: string): Promise<void> {
+  // O ambiente de produção é Linux. O Windows não oferece a mesma operação
+  // para handles de diretório e é usado aqui apenas para desenvolvimento local.
+  if (process.platform === "win32") return;
+  const handle = await open(path, "r");
+  try {
+    await handle.sync();
+  } finally {
+    await handle.close();
   }
 }
 

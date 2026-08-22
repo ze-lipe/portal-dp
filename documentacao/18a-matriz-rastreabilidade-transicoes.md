@@ -624,4 +624,5 @@ As raízes abaixo sustentam implantação e segurança, mas não representam uma
 
 O validador dos 440 IDs continua comparando apenas o conjunto funcional do Documento 17. Em paralelo, o gate documental deve falhar se qualquer raiz desta tabela perder entidade, relacionamento/restrição, máquina de estados, backlog, contrato de plano de controle ou prova técnica.
 
-**Continuidade vigente:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`. Produção permanece não autorizada e os procedimentos continuam `NOT_RUN_PLANNED`.
+**Continuidade na data da aprovação:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`.  
+**Checkpoint posterior:** baseline em implementação controlada conforme `docs/ETP-00.md`; produção permanece não autorizada e os procedimentos formais continuam `NOT_RUN_PLANNED`.

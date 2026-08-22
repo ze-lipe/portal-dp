@@ -38,6 +38,142 @@ paths:
                 $ref: '#/components/schemas/PublicSession'
         '500':
           $ref: '#/components/responses/Problem'
+  /api/v1/etp00/provas-sinteticas/{registroId}:
+    patch:
+      operationId: API-ETP00-001
+      summary: Atualizar registro exclusivamente sintético da prova ETP-00
+      description: >-
+        Rota habilitável somente em NODE_ENV=test e indisponível em
+        desenvolvimento, homologação e produção. Exercita versão do registro,
+        versão do contexto e resposta mínima de conflito contra PostgreSQL real.
+      tags: [Prova ETP-00]
+      parameters:
+        - name: registroId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-Company-Id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-Actor-Id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-Context-Version
+          in: header
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 200
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [codigo, valor, versao_esperada]
+              properties:
+                codigo:
+                  type: string
+                  minLength: 3
+                  maxLength: 80
+                  pattern: '^[A-Z][A-Z0-9_.-]{2,79}$'
+                valor:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                  pattern: '^[^\r\n]+$'
+                versao_esperada:
+                  type: integer
+                  minimum: 1
+      responses:
+        '200':
+          description: Atualização sintética concluída
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [operacao_id, empresa_id, registro_id, versao_final, resultado]
+                properties:
+                  operacao_id:
+                    type: string
+                    format: uuid
+                  empresa_id:
+                    type: string
+                    format: uuid
+                  registro_id:
+                    type: string
+                    format: uuid
+                  versao_final:
+                    type: integer
+                    minimum: 2
+                  resultado:
+                    enum: [CONCLUIDA, REPETICAO_RECONCILIADA]
+        '202':
+          description: Operação idempotente ainda em processamento
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [operacao_id, empresa_id, registro_id, resultado]
+                properties:
+                  operacao_id:
+                    type: string
+                    format: uuid
+                  empresa_id:
+                    type: string
+                    format: uuid
+                  registro_id:
+                    type: string
+                    format: uuid
+                  resultado:
+                    const: EM_PROCESSAMENTO
+        '400':
+          description: Entrada sintética inválida
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Origem ou proteção CSRF rejeitada
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Recurso inexistente ou não autorizado, sem distinção
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Versão/contexto obsoleto ou chave natural já existente
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/VersionConflictProblem'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NaturalKeyConflictResult'
+        '500':
+          $ref: '#/components/responses/Problem'
   /health/live:
     get:
       operationId: API-UTL-003
@@ -149,3 +285,46 @@ components:
         correlacao_id:
           type: string
           format: uuid
+    VersionConflictProblem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, code, detail, instance, correlacao_id, versao_atual]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          const: Conflito
+        status:
+          const: 409
+        code:
+          enum: [VERSAO_DESATUALIZADA, CONTEXTO_DESATUALIZADO]
+        detail:
+          type: string
+        instance:
+          type: string
+        correlacao_id:
+          type: string
+          format: uuid
+        versao_atual:
+          type: integer
+          minimum: 1
+    NaturalKeyConflictResult:
+      type: object
+      additionalProperties: false
+      required: [operacao_id, empresa_id, registro_id, versao_final, resultado]
+      properties:
+        operacao_id:
+          type: string
+          format: uuid
+        empresa_id:
+          type: string
+          format: uuid
+        registro_id:
+          type: string
+          format: uuid
+        versao_final:
+          type: integer
+          minimum: 1
+        resultado:
+          const: CHAVE_NATURAL_EXISTENTE

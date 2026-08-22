@@ -48,13 +48,33 @@ export interface SyntheticEnterpriseCommand {
   readonly intencao: SyntheticEnterpriseIntent;
 }
 
-export interface SyntheticEnterpriseResult {
+export interface SyntheticEnterpriseCompletedResult {
   readonly operacao_id: OperacaoId;
   readonly empresa_id: EmpresaId;
   readonly registro_id: RegistroSinteticoId;
   readonly versao_final: number;
   readonly resultado: "CONCLUIDA" | "REPETICAO_RECONCILIADA";
 }
+
+export interface SyntheticEnterpriseInProgressResult {
+  readonly operacao_id: OperacaoId;
+  readonly empresa_id: EmpresaId;
+  readonly registro_id: RegistroSinteticoId;
+  readonly resultado: "EM_PROCESSAMENTO";
+}
+
+export interface SyntheticEnterpriseNaturalKeyResult {
+  readonly operacao_id: OperacaoId;
+  readonly empresa_id: EmpresaId;
+  readonly registro_id: RegistroSinteticoId;
+  readonly versao_final: number;
+  readonly resultado: "CHAVE_NATURAL_EXISTENTE";
+}
+
+export type SyntheticEnterpriseResult =
+  | SyntheticEnterpriseCompletedResult
+  | SyntheticEnterpriseInProgressResult
+  | SyntheticEnterpriseNaturalKeyResult;
 
 export type AuditOutcome = "SUCESSO" | "NEGADO" | "FALHA" | "CANCELADO";
 

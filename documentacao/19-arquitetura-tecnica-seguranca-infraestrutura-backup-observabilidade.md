@@ -2246,4 +2246,5 @@ Com essa aprovação, a próxima etapa autorizada é preparar o repositório e e
 ---
 
 **Situação final:** Documento 19 aprovado integralmente pelo usuário.  
-**Estado do programa:** Documentos 20 a 23 e respectivos anexos aprovados; a `ETP-00` é a próxima etapa autorizada. Nenhum código de produção foi iniciado.
+**Estado na data da aprovação:** Documentos 20 a 23 e respectivos anexos aprovados; a `ETP-00` era a próxima etapa autorizada e nenhum código de produção havia sido iniciado.  
+**Checkpoint posterior:** a baseline `ETP-00` está em implementação controlada conforme `docs/ETP-00.md`; nenhuma implantação de produção foi iniciada.

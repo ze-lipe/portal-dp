@@ -2413,7 +2413,7 @@ O documento poderá ser aprovado quando o usuário confirmar que:
 
 # 35. Continuidade vigente
 
-Os Documentos 21/21A e os pacotes 22/22A–22D e 23/23A–23D estão aprovados. A continuidade é preparar o repositório e iniciar a `ETP-00` na ordem do Documento 21, com os gates e evidências do Documento 22.
+Os Documentos 21/21A e os pacotes 22/22A–22D e 23/23A–23D estão aprovados. Na data da aprovação, a continuidade era preparar o repositório e iniciar a `ETP-00` na ordem do Documento 21, com os gates e evidências do Documento 22. O checkpoint posterior registra a baseline em implementação controlada em `docs/ETP-00.md`.
 
 ---
 
@@ -2432,4 +2432,5 @@ As referências orientam o desenho técnico. As regras internas aprovadas contin
 
 **Situação final desta versão:** Documento 20 aprovado integralmente pelo usuário em 22/08/2026.  
 **Anexo obrigatório:** Documento 20A — Matriz de Rastreabilidade API, Autorização e Transições.  
-**Continuidade vigente:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`. Nenhum código de produção foi iniciado; produção não está autorizada.
+**Continuidade na data da aprovação:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`; nenhum código de produção havia sido iniciado.  
+**Checkpoint posterior:** baseline em implementação controlada conforme `docs/ETP-00.md`; produção não está autorizada nem foi iniciada.

@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import {
   Catch,
   type ExceptionFilter,
@@ -8,6 +6,8 @@ import {
 } from "@nestjs/common";
 import type { ArgumentsHost } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
+
+import { normalizedCorrelationId } from "./correlation-id.js";
 
 @Catch()
 export class ProblemDetailsFilter implements ExceptionFilter {
@@ -18,11 +18,9 @@ export class ProblemDetailsFilter implements ExceptionFilter {
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
-    const requestedCorrelationId = request.headers["x-correlation-id"];
-    const correlationId =
-      typeof requestedCorrelationId === "string"
-        ? requestedCorrelationId
-        : randomUUID();
+    const correlationId = normalizedCorrelationId(
+      request.headers["x-correlation-id"],
+    );
     // Erros internos recebem mensagem genérica. O diagnóstico usa a correlação,
     // sem devolver detalhes técnicos ou dados protegidos ao navegador.
     const publicDetail =
@@ -33,6 +31,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
           : "Requisicao invalida.";
 
     void reply
+      .header("x-correlation-id", correlationId)
       .status(status)
       .type("application/problem+json")
       .send({

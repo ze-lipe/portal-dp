@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "bindingsVersion": "ETP-00/1.0.0",
+  "bindingsVersion": "ETP-00/1.1.0",
   "rules": [
     {
       "id": "BIND-EXECUTION-CONTEXT",
@@ -8,19 +8,58 @@
       "cases": ["QAT-DOC-009"]
     },
     {
+      "id": "BIND-UNIT-TEST-REPORT",
+      "match": "**/unit-tests.log",
+      "cases": [
+        "QAT-AUD-007",
+        "QAT-SEC-006",
+        "QAT-SEC-007",
+        "TST-API-001",
+        "TST-API-020"
+      ]
+    },
+    {
       "id": "BIND-GAT-02-DATABASE",
       "match": "**/gat-02-vitest.json",
-      "cases": ["GAT-02"]
+      "cases": [
+        "GAT-02",
+        "QAT-AUD-007",
+        "QAT-SEC-006",
+        "QAT-SEC-007",
+        "QAT-SEC-032",
+        "TST-API-001",
+        "TST-API-020"
+      ]
+    },
+    {
+      "id": "BIND-BUILD-TOOLCHAIN",
+      "match": "**/build-toolchain-verification.json",
+      "cases": ["QAT-SEC-021", "QAT-SEC-037"]
     },
     {
       "id": "BIND-OCI-RUNTIME",
       "match": "**/oci-*",
-      "cases": ["GAT-01", "GAT-02", "QAT-SEC-037"]
+      "cases": ["GAT-01", "GAT-02"]
+    },
+    {
+      "id": "BIND-OCI-API-READY",
+      "match": "**/oci-api-ready.json",
+      "cases": ["GAT-01", "TST-API-001"]
+    },
+    {
+      "id": "BIND-OCI-API-SESSION",
+      "match": "**/oci-api-session-check.json",
+      "cases": ["GAT-01", "QAT-SEC-006"]
+    },
+    {
+      "id": "BIND-OCI-WORKER",
+      "match": "**/oci-worker-verification.json",
+      "cases": ["GAT-01"]
     },
     {
       "id": "BIND-OCI-ARTIFACT",
       "match": "**/portal-dp*.tar",
-      "cases": ["GAT-01", "QAT-SEC-021", "QAT-SEC-037"]
+      "cases": ["GAT-01", "QAT-SEC-021"]
     },
     {
       "id": "BIND-OCI-DIGEST",
@@ -28,9 +67,14 @@
       "cases": ["GAT-01", "QAT-SEC-021"]
     },
     {
+      "id": "BIND-OCI-BUILD-LINK",
+      "match": "**/oci-build-link.json",
+      "cases": ["GAT-01", "QAT-SEC-021"]
+    },
+    {
       "id": "BIND-OCI-CONTAINER-STATE",
       "match": "**/portal-dp-*-smoke.*",
-      "cases": ["GAT-01", "QAT-SEC-037"]
+      "cases": ["GAT-01"]
     },
     {
       "id": "BIND-SBOM-CYCLONEDX",
@@ -40,12 +84,12 @@
     {
       "id": "BIND-SCA-PNPM",
       "match": "**/pnpm-audit-production.json",
-      "cases": ["QAT-SEC-036"]
+      "cases": ["QAT-SEC-021", "QAT-SEC-036"]
     },
     {
       "id": "BIND-LICENSES",
       "match": "**/licenses-production.json",
-      "cases": ["QAT-SEC-036"]
+      "cases": ["QAT-SEC-021", "QAT-SEC-036"]
     },
     {
       "id": "BIND-SAST",
@@ -53,14 +97,29 @@
       "cases": ["QAT-SEC-035"]
     },
     {
+      "id": "BIND-SECRET-SCAN",
+      "match": "**/gitleaks-result.json",
+      "cases": ["QAT-SEC-034"]
+    },
+    {
       "id": "BIND-TRIVY-IMAGE",
       "match": "**/trivy-image.json",
-      "cases": ["QAT-SEC-021", "QAT-SEC-037"]
+      "cases": ["QAT-SEC-021"]
     },
     {
       "id": "BIND-TRIVY-CONFIG",
       "match": "**/trivy-config.json",
       "cases": ["QAT-SEC-037"]
+    },
+    {
+      "id": "BIND-SECURITY-CONFIG-VERIFICATION",
+      "match": "**/security-configuration-verification.json",
+      "cases": ["QAT-SEC-037"]
+    },
+    {
+      "id": "BIND-LONG-TERM-RETENTION-RECEIPT",
+      "match": "**/long-term-retention-receipt.json",
+      "cases": ["QAT-DOC-009"]
     },
     {
       "id": "BIND-REPOSITORY-INTEGRITY",

@@ -19,11 +19,12 @@ O CI sempre inclui um contexto sanitizado com os resultados de cada job. Assim,
 mesmo uma falha anterior à geração dos relatórios recebe manifesto próprio; a
 ausência de anexos esperados permanece visível e nunca é convertida em sucesso.
 O manifesto diferencia `sealed` de `complete`: ele pode preservar uma execução
-reprovada, mas `--require-complete` falha se o download não terminar, se um job
-bem-sucedido não entregar seu relatório obrigatório ou se a retenção oficial
-ainda não estiver comprovada.
+reprovada, mas `--require-complete` falha se qualquer job obrigatório não for
+aprovado, se o download não terminar, se um relatório obrigatório não estiver
+presente ou se a retenção oficial ainda não estiver comprovada.
 
-O contrato executável é `portal-dp/evidence-repository@1.0.0`. Ele exige:
+O contrato executável é `portal-dp/evidence-repository@1.1.0`, esquema 2. Ele
+exige:
 
 - versão da aplicação, agregado das migrações e hash da fixture sintética;
 - SHA-256, tamanho, tipo, caminho lógico e caminho content-addressed de cada
@@ -37,6 +38,15 @@ O contrato executável é `portal-dp/evidence-repository@1.0.0`. Ele exige:
 - estado da aprovação ASVS, sem converter o fechamento da evidência em aceite;
 - vínculo com o manifesto anterior quando uma execução corrige outra.
 
+O catálogo
+`evidencias/manifests/evidence-bindings-etp00-v1.json` define quais caminhos
+podem produzir cada regra de binding e a quais casos ela se aplica. O manifesto
+selado registra a versão, o caminho e o SHA-256 desse catálogo. O gate recalcula
+os bindings a partir dos artefatos, exige os grupos obrigatórios por caso e
+recusa um ID apenas declarado, um arquivo arbitrário ou um catálogo alterado.
+Relatórios críticos também passam por validação semântica específica; JSON
+bem-formado, isoladamente, não comprova o requisito.
+
 ## Imutabilidade e substituição
 
 Um `run-id` existente nunca é reaberto nem sobrescrito. Uma correção usa outro
@@ -48,6 +58,11 @@ O armazenamento do GitHub Actions aplica a ACL do repositório ao artefato
 selado. O manifesto registra o workflow como escritor efetivo e o ator apenas
 como iniciador. Os arquivos locais recebem permissão somente leitura como defesa
 adicional, mas o filesystem local continua sendo apenas tamper-evident, não WORM.
+Os dados de origem presentes no manifesto são declarações da própria execução.
+Por isso, um aceite real também exige que cada homologador abra a `runUrl` no
+GitHub e confirme a execução, o commit, a tentativa, os jobs e o pacote; essa
+confirmação fica registrada em `githubRunVerified` e não é inferida apenas dos
+campos locais.
 
 O prazo de 90 dias do artifact é somente transporte e não autoriza eliminação.
 Enquanto não existirem provedor durável, referência do objeto e hash do recibo
@@ -72,6 +87,19 @@ corepack pnpm evidence:verify -- --manifest evidencias/repositorio/runs/local-00
 A primeira verificação prova estrutura, hashes e cadeia mesmo para uma execução
 reprovada. Use `--require-complete` somente quando os anexos e a custódia de longo
 prazo estiverem disponíveis; caso contrário, a falha é intencional.
+
+O gate de contribuições da ETP-00 usa internamente a completude técnica: exige
+transporte concluído, todos os jobs aprovados e todos os requisitos e artefatos
+técnicos obrigatórios presentes, sem exigir `retentionSatisfied`. Essa separação
+não flexibiliza falha de execução nem ausência de prova; apenas evita antecipar
+na ETP-00 o recibo de custódia durável planejado para a ETP-11. O estado
+`complete` e a opção `--require-complete` continuam reservados à combinação de
+completude técnica e retenção oficial comprovada.
+
+O pipeline da ETP-00 executa a primeira verificação e preserva inclusive uma
+execução reprovada. O gate `--require-complete` volta a ser obrigatório no
+candidato à liberação, depois da configuração do repositório durável prevista
+para a ETP-11; essa separação não transforma falha técnica em aprovação.
 
 Para corrigir uma execução, use um novo identificador:
 

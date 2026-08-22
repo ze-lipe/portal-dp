@@ -22,8 +22,15 @@ try {
   const unsafeRoles = await client.query<{ rolname: string }>(`
     SELECT rolname
       FROM pg_catalog.pg_roles
-     WHERE rolname IN ('portal_dp_app', 'portal_dp_worker', 'portal_dp_audit', 'portal_dp_ops')
-       AND (rolsuper OR rolcreaterole OR rolcreatedb OR rolbypassrls)
+     WHERE rolname IN (
+       'portal_dp_owner', 'portal_dp_app', 'portal_dp_worker',
+       'portal_dp_audit', 'portal_dp_ops',
+       'portal_dp_app_login', 'portal_dp_worker_login'
+     )
+       AND (
+         rolsuper OR rolcreaterole OR rolcreatedb OR
+         rolreplication OR rolbypassrls
+       )
   `);
   if ((unsafeRoles.rowCount ?? 0) > 0) {
     throw new Error(

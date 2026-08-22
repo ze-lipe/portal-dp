@@ -287,6 +287,13 @@ Fonte fixada: <https://github.com/OWASP/ASVS/releases/download/v5.0.0_release/OW
 
 `ADIADO` bloqueia o gate final. Todos os L1 aplicáveis são obrigatórios. Os L2 escolhidos por risco são enumerados nominalmente antes de qualquer código de produção. Controles de tecnologia ausente — por exemplo OAuth/OIDC, token autocontido, WebRTC, GraphQL ou WebSocket — só recebem `NÃO_APLICÁVEL` com justificativa verificável; se a arquitetura mudar, voltam automaticamente para avaliação.
 
+O manifesto aprovado é o objeto imutável da decisão de aplicabilidade. O campo
+`BLOQUEADO` gravado nele é a fotografia inicial, não o resultado corrente do
+controle. O índice `asvs-evidence-index-v5.0.0.json` recebe os resultados por
+controle, e `asvs-stage-gates-v5.0.0.json` recebe as contribuições por etapa;
+ambos referenciam o hash canônico da aplicabilidade. Assim, executar um caso não
+reescreve a aprovação, e aprovar aplicabilidade não é confundido com conformidade.
+
 ## 11.3 Contrato do manifesto WCAG 2.2 AA
 
 A referência normativa congelada é a Recomendação W3C **WCAG 2.2**, versão de 12 de dezembro de 2024: <https://www.w3.org/TR/2024/REC-WCAG22-20241212/>. Antes da implementação visual, sua versão e o hash do artefato obtido serão registrados no repositório; uma fonte mutável não poderá substituir silenciosamente a versão homologada.
@@ -330,20 +337,88 @@ O script documental atual não declara que `QAT-DOC-*`, `QAT-SEC-*` ou qualquer 
 
 ## 12.2 Validador de implementação e gates
 
-Antes da ETP-00 concluir — e novamente no GAT-10 — o validador de implementação deverá falhar se:
+O validador expõe três exigências distintas; nenhuma opção usa o termo genérico
+“ASVS aprovado” para representar todas elas.
 
-1. o manifesto de aplicabilidade não possuir uma linha para cada um dos 345 controles importados;
-2. controle L1 aplicável ou L2 selecionado não possuir caso, ID real de evidência e resultado;
-3. existir `NÃO_APLICÁVEL` sem justificativa e aprovação de Segurança;
-4. existir `ADIADO` no gate final;
-5. algum dos 119 casos depender de etapa futura para aprovar uma etapa anterior, considerada a semântica de revalidação da seção 2.4;
-6. alguma das 60 telas não possuir os oito resultados A11Y aplicáveis;
-7. algum critério A/AA do manifesto WCAG estiver sem decisão, método, tela aplicável, resultado ou justificativa aprovada quando não aplicável;
-8. evidência contiver dado proibido, checksum divergente ou cadeia de custódia incompleta;
-9. qualquer `QAT-DOC-*` detectar órfão, duplicidade, ciclo, dependência futura, divergência de hash ou gerador não determinístico.
+### Entrada e aprovação da aplicabilidade
+
+`--require-applicability-approved` — e o alias legado
+`--require-approved` — falha se:
+
+1. o manifesto não possuir uma linha para cada um dos 345 controles importados;
+2. controle selecionado não possuir caso e ID planejado de evidência;
+3. existir `NÃO_APLICÁVEL` sem justificativa;
+4. fonte, perfil, controles ou justificativas divergirem do hash aprovado;
+5. faltar responsável nominal, instante válido ou vínculo exato da aprovação.
+
+Essa opção é a condição anterior ao primeiro commit; ela não lê `BLOQUEADO`
+como falha de aprovação nem declara conformidade de controles.
+
+### Saída da ETP-00
+
+O inventário aprovado originalmente atribuiu 13 casos à primeira etapa
+proprietária `ETP-00`. A implementação do repositório de evidências demonstrou
+que quatro desses casos têm escopo integral que depende de módulos ou
+infraestrutura ainda futuros:
+
+- `QAT-RES-009` e `QAT-SEC-023` dependem de integração KMS real e de sua prova
+  de indisponibilidade/rotação;
+- `TST-API-010` depende dos fluxos financeiros e documentais que ainda não
+  existem na fatia vertical;
+- `QAT-SEC-037` recebe na ETP-00 somente a contribuição delimitada de imagem e
+  configuração segura do runtime; MFA, contas administrativas e segregação
+  integral continuam diferidos.
+
+A correção controlada `COR-ASVS-ETP00-001` preserva os 13 casos no inventário e
+não declara nenhum deles aprovado. Ela restringe o gate executável desta etapa
+a dez contribuições: `QAT-AUD-007`, `QAT-SEC-006/007/021/032/034/035/037` e
+`TST-API-001/020`. O fechamento integral dos quatro casos citados permanece
+`BLOQUEADO` até suas etapas futuras e provas específicas. A correção está
+`PENDENTE_APROVACAO_SEGURANCA`: a aprovação nominal de
+`Jose Felipe Leite Marques — Desenvolvedor`, como responsável de Segurança,
+ainda precisa ser registrada com instante e hash do objeto aprovado. O texto
+não representa essa aprovação.
+
+Com essa correção aprovada, `--require-stage ETP-00` exige primeiro a
+aplicabilidade aprovada e falha se:
+
+1. faltar qualquer uma das dez contribuições executáveis delimitadas acima;
+2. qualquer contribuição não estiver `EXECUTADA` e
+   `CONTRIBUICAO_COMPROVADA`, com responsável nominal, instante ISO e IDs de
+   artefatos pertencentes à mesma execução selada;
+3. o catálogo canônico de bindings, seu SHA-256, o manifesto selado ou seu
+   SHA-256 divergirem, ou os grupos obrigatórios de `bindingRuleId` não forem
+   cobertos por artefatos associados ao próprio caso;
+4. jobs, transporte ou requisitos técnicos da execução estiverem incompletos,
+   sem antecipar a retenção durável exigida somente antes da liberação;
+5. algum relatório crítico falhar em sua validação semântica, contiver dado
+   proibido ou for uma fixture/teste apresentada como aceite real;
+6. qualquer `QAT-DOC-*` aplicável detectar órfão, duplicidade, ciclo,
+   dependência futura, divergência de hash ou gerador não determinístico;
+7. a correção `COR-ASVS-ETP00-001` continuar sem aprovação nominal de
+   Segurança.
+
+Passar essa opção fecha somente as contribuições executáveis delimitadas da
+ETP-00, nunca os casos integrais nem os 211 controles. Um resultado da etapa usa
+`CONTRIBUICAO_COMPROVADA`, e não `PASSOU`; os controles continuam `BLOQUEADO` no
+índice até sua verificação integral.
+
+### Fechamento integral futuro
+
+`--require-final`, executado na ETP-11/GAT-10, exige ainda a saída da ETP-00 e
+falha se:
+
+1. qualquer controle L1 aplicável, L2 selecionado ou adicional por risco não
+   estiver `EXECUTADA` e `PASSOU`, com evidência verificável;
+2. existir `ADIADO`;
+3. alguma das 60 telas não possuir os oito resultados A11Y aplicáveis;
+4. algum critério A/AA do manifesto WCAG estiver sem decisão, método, tela
+   aplicável, resultado ou justificativa aprovada quando não aplicável;
+5. DAST, avaliação independente, regressão, restauração ou demais provas de
+   GAT-10 permanecerem incompletas.
 
 ---
 
 **Situação desta versão:** 119 casos técnicos enumerados, revisados e aprovados pelo usuário.  
-**Continuidade vigente:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`; execução permanece `NOT_RUN_PLANNED`.  
-**Código de produção:** ainda não iniciado.
+**Continuidade na data da aprovação:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`; o código de produção ainda não havia sido iniciado.  
+**Checkpoint posterior:** baseline em implementação controlada conforme `docs/ETP-00.md`; os gates formais permanecem `NOT_RUN_PLANNED` e nenhuma implantação de produção foi iniciada.

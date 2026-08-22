@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "manifestType": "ACEITE_DE_ETAPA",
+  "manifestId": "ACE-ETP-00-PENDENTE",
+  "stage": "ETP-00",
+  "status": "PENDENTE",
+  "references": {
+    "document21Section": "35.3",
+    "document22Decision": "QLT-011",
+    "asvsStageGatesPath": "evidencias/manifests/asvs-stage-gates-v5.0.0.json",
+    "uiConCoveragePath": "evidencias/manifests/etp00-ui-con-coverage-v1.json",
+    "evidenceBindingsPath": "evidencias/manifests/evidence-bindings-etp00-v1.json"
+  },
+  "scope": {
+    "requiredGateIds": ["GAT-01", "GAT-02"],
+    "requiredBacklogItemIds": [
+      "BK-001",
+      "BK-002",
+      "BK-003",
+      "BK-004",
+      "BK-005",
+      "BK-006",
+      "BK-007",
+      "BK-008",
+      "BK-009",
+      "BK-010",
+      "BK-011",
+      "BK-012",
+      "BK-013",
+      "BK-014",
+      "BK-015",
+      "BK-077",
+      "BK-320",
+      "BK-331",
+      "BK-360",
+      "BK-361",
+      "BK-363"
+    ],
+    "requiredDocumentCaseIds": [
+      "QAT-AUD-007",
+      "QAT-SEC-006",
+      "QAT-SEC-007",
+      "QAT-SEC-021",
+      "QAT-SEC-032",
+      "QAT-SEC-034",
+      "QAT-SEC-035",
+      "QAT-SEC-037",
+      "TST-API-001",
+      "TST-API-020",
+      "TST-CON-01",
+      "TST-CON-02",
+      "TST-CON-03",
+      "TST-CON-04",
+      "TST-CON-05",
+      "TST-CON-06",
+      "TST-CON-07",
+      "TST-CON-08",
+      "TST-CON-09",
+      "TST-UI-01",
+      "TST-UI-02",
+      "TST-UI-03",
+      "TST-UI-04",
+      "TST-UI-05",
+      "TST-UI-06",
+      "TST-UI-07",
+      "TST-UI-08",
+      "TST-UI-08A",
+      "TST-UI-09",
+      "TST-UI-10",
+      "TST-UI-10A",
+      "TST-UI-11",
+      "TST-UI-12",
+      "TST-UI-13",
+      "TST-UI-14",
+      "TST-UI-15",
+      "TST-UI-16",
+      "TST-UI-17",
+      "TST-UI-18",
+      "TST-UI-19",
+      "TST-UI-20",
+      "TST-UI-21",
+      "TST-UI-22",
+      "TST-UI-23",
+      "TST-UI-24",
+      "TST-UI-25",
+      "TST-UI-26"
+    ],
+    "requiredHomologationAreas": [
+      "ENGENHARIA_E_SEGURANCA",
+      "RESPONSAVEL_DE_PRODUTO"
+    ]
+  },
+  "evidence": {
+    "runManifestPath": null,
+    "runManifestSha256": null,
+    "bindingCatalogSha256": null,
+    "applicationArtifact": {
+      "artifactId": null,
+      "sourcePath": null,
+      "sha256": null
+    }
+  },
+  "versions": {
+    "application": null,
+    "schema": {
+      "version": null,
+      "migrationsSha256": null
+    },
+    "fixture": {
+      "version": null,
+      "sha256": null
+    }
+  },
+  "coverage": {
+    "verifiedBacklogItemIds": [],
+    "verifiedDocumentCaseIds": []
+  },
+  "results": {
+    "jobOutcomes": {},
+    "gates": [
+      {
+        "gateId": "GAT-01",
+        "status": "NAO_EXECUTADO",
+        "evidenceArtifactIds": [],
+        "notes": null
+      },
+      {
+        "gateId": "GAT-02",
+        "status": "NAO_EXECUTADO",
+        "evidenceArtifactIds": [],
+        "notes": null
+      }
+    ],
+    "measurements": {
+      "status": "PENDENTE",
+      "entries": [],
+      "justification": null
+    }
+  },
+  "environment": {
+    "provider": null,
+    "repository": null,
+    "revision": null,
+    "ref": null,
+    "workflow": null,
+    "attempt": null,
+    "runUrl": null,
+    "databaseEngine": null,
+    "databaseVersion": null,
+    "containerPlatform": null,
+    "dataKind": "SINTETICA"
+  },
+  "residuals": {
+    "reviewed": false,
+    "defects": [],
+    "risks": []
+  },
+  "homologations": [],
+  "decision": {
+    "status": "PENDENTE",
+    "decidedAt": null,
+    "decidedBy": null,
+    "conclusion": null
+  }
+}

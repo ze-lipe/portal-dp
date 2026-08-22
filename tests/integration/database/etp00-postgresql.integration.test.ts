@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
+import { sanitizeOperationalEvent } from "@portal-dp/observability";
 import type { Pool, PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { classifyOutboxError } from "../../../apps/worker/src/runner.js";
 import {
   ACTOR,
   COMPANY_A,
@@ -66,9 +68,11 @@ describe.sequential("ETP-00 PostgreSQL baseline", () => {
       rolsuper: boolean;
       rolcreaterole: boolean;
       rolcreatedb: boolean;
+      rolreplication: boolean;
       rolbypassrls: boolean;
     }>(`
-      SELECT rolname, rolcanlogin, rolsuper, rolcreaterole, rolcreatedb, rolbypassrls
+      SELECT rolname, rolcanlogin, rolsuper, rolcreaterole, rolcreatedb,
+             rolreplication, rolbypassrls
         FROM pg_catalog.pg_roles
        WHERE rolname IN (
          'portal_dp_owner', 'portal_dp_app', 'portal_dp_worker',
@@ -84,6 +88,7 @@ describe.sequential("ETP-00 PostgreSQL baseline", () => {
         rolsuper: false,
         rolcreaterole: false,
         rolcreatedb: false,
+        rolreplication: false,
         rolbypassrls: false,
       });
     }
@@ -95,10 +100,11 @@ describe.sequential("ETP-00 PostgreSQL baseline", () => {
       rolsuper: boolean;
       rolcreaterole: boolean;
       rolcreatedb: boolean;
+      rolreplication: boolean;
       rolbypassrls: boolean;
     }>(`
       SELECT rolname, rolcanlogin, rolinherit, rolsuper,
-             rolcreaterole, rolcreatedb, rolbypassrls
+             rolcreaterole, rolcreatedb, rolreplication, rolbypassrls
         FROM pg_catalog.pg_roles
        WHERE rolname IN ('portal_dp_app_login', 'portal_dp_worker_login')
        ORDER BY rolname
@@ -111,9 +117,40 @@ describe.sequential("ETP-00 PostgreSQL baseline", () => {
         rolsuper: false,
         rolcreaterole: false,
         rolcreatedb: false,
+        rolreplication: false,
         rolbypassrls: false,
       });
     }
+
+    const memberships = await pool.query<{
+      member_role: string;
+      granted_role: string;
+    }>(`
+      SELECT member_role.rolname AS member_role,
+             granted_role.rolname AS granted_role
+        FROM pg_catalog.pg_auth_members AS membership
+        JOIN pg_catalog.pg_roles AS member_role
+          ON member_role.oid = membership.member
+        JOIN pg_catalog.pg_roles AS granted_role
+          ON granted_role.oid = membership.roleid
+       WHERE member_role.rolname IN (
+               'portal_dp_app_login',
+               'portal_dp_worker_login',
+               'portal_dp_app',
+               'portal_dp_worker'
+             )
+       ORDER BY member_role.rolname, granted_role.rolname
+    `);
+    expect(memberships.rows).toEqual([
+      {
+        member_role: "portal_dp_app_login",
+        granted_role: "portal_dp_app",
+      },
+      {
+        member_role: "portal_dp_worker_login",
+        granted_role: "portal_dp_worker",
+      },
+    ]);
 
     const rlsResult = await pool.query<{
       relname: string;
@@ -214,6 +251,37 @@ describe.sequential("ETP-00 PostgreSQL baseline", () => {
         objects: "0",
       });
       await client.query("COMMIT");
+
+      // CON-09: uma tarefa empresarial sem empresa falha no PostgreSQL e o
+      // registro operacional conserva somente um código técnico sanitizado.
+      await client.query("BEGIN");
+      await client.query("SET LOCAL ROLE portal_dp_worker");
+      let technicalError: unknown;
+      try {
+        await client.query(
+          "SELECT id FROM portal_dp.lease_next_outbox_task('worker-sem-empresa', 30)",
+        );
+      } catch (error) {
+        technicalError = error;
+      }
+      await client.query("ROLLBACK");
+      expect(technicalError).toMatchObject({ code: "22023" });
+      const safeErrorCode = classifyOutboxError(technicalError);
+      const safeEvent = sanitizeOperationalEvent({
+        event: "outbox_failed",
+        taskId: "tarefa-sintetica-sem-empresa",
+        errorCode: safeErrorCode,
+        companyId: undefined,
+        message:
+          technicalError instanceof Error ? technicalError.message : "erro",
+        payload: { empresa_id: null, dado: "nao-pode-aparecer" },
+      });
+      expect(safeEvent).toEqual({
+        event: "outbox_failed",
+        taskId: "tarefa-sintetica-sem-empresa",
+        errorCode: "PERMANENT_PROCESSING_FAILURE",
+      });
+      expect(JSON.stringify(safeEvent)).not.toContain("nao-pode-aparecer");
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;

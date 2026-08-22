@@ -3,61 +3,102 @@
 -- migração autorizada a criar papéis e extensões em banco descartável ou controlado.
 
 DO $roles$
+DECLARE
+  preexisting_roles text;
 BEGIN
-  IF EXISTS (
-    SELECT 1
-      FROM pg_catalog.pg_roles
-     WHERE rolname = 'portal_dp_owner'
-       AND (rolcanlogin OR rolsuper)
-  ) THEN
+  SELECT string_agg(rolname, ', ' ORDER BY rolname)
+    INTO preexisting_roles
+    FROM pg_catalog.pg_roles
+   WHERE rolname IN (
+     'portal_dp_owner', 'portal_dp_app', 'portal_dp_worker',
+     'portal_dp_audit', 'portal_dp_ops',
+     'portal_dp_app_login', 'portal_dp_worker_login'
+   );
+
+  IF preexisting_roles IS NOT NULL THEN
     RAISE EXCEPTION
-      'portal_dp_owner already exists with LOGIN or SUPERUSER; use a distinct portal_dp_bootstrap migration identity'
+      'portal-dp requires new dedicated roles; preexisting roles found: %',
+      preexisting_roles
       USING ERRCODE = '42501';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'portal_dp_owner') THEN
-    CREATE ROLE portal_dp_owner NOLOGIN;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'portal_dp_app') THEN
-    CREATE ROLE portal_dp_app NOLOGIN;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'portal_dp_worker') THEN
-    CREATE ROLE portal_dp_worker NOLOGIN;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'portal_dp_audit') THEN
-    CREATE ROLE portal_dp_audit NOLOGIN;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'portal_dp_ops') THEN
-    CREATE ROLE portal_dp_ops NOLOGIN;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'portal_dp_app_login') THEN
-    CREATE ROLE portal_dp_app_login NOLOGIN;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'portal_dp_worker_login') THEN
-    CREATE ROLE portal_dp_worker_login NOLOGIN;
-  END IF;
+  CREATE ROLE portal_dp_owner NOLOGIN;
+  CREATE ROLE portal_dp_app NOLOGIN;
+  CREATE ROLE portal_dp_worker NOLOGIN;
+  CREATE ROLE portal_dp_audit NOLOGIN;
+  CREATE ROLE portal_dp_ops NOLOGIN;
+  CREATE ROLE portal_dp_app_login NOLOGIN;
+  CREATE ROLE portal_dp_worker_login NOLOGIN;
 END
 $roles$;
 
 ALTER ROLE portal_dp_owner
-  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
 ALTER ROLE portal_dp_app
-  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
 ALTER ROLE portal_dp_worker
-  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
 ALTER ROLE portal_dp_audit
-  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
 ALTER ROLE portal_dp_ops
-  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
 ALTER ROLE portal_dp_app_login
-  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
 ALTER ROLE portal_dp_worker_login
-  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
 
 -- As identidades de login não herdam privilégios e assumem explicitamente o
 -- papel lógico. RESET ROLE retorna a uma identidade sem acesso ao negócio.
 GRANT portal_dp_app TO portal_dp_app_login;
 GRANT portal_dp_worker TO portal_dp_worker_login;
+
+-- Um papel reaproveitado pode conservar associacoes antigas mesmo depois de
+-- seus atributos serem restringidos. A migracao falha fechado se qualquer
+-- login tecnico puder assumir outro papel ou se o papel logico herdar uma
+-- associacao nao prevista.
+DO $service_role_memberships$
+DECLARE
+  unexpected_membership text;
+BEGIN
+  SELECT format('%s -> %s', login_role.rolname, granted_role.rolname)
+    INTO unexpected_membership
+    FROM (
+      VALUES
+        ('portal_dp_app_login'::name, 'portal_dp_app'::name),
+        ('portal_dp_worker_login'::name, 'portal_dp_worker'::name)
+    ) AS expected(login_name, role_name)
+    JOIN pg_catalog.pg_roles AS login_role
+      ON login_role.rolname = expected.login_name
+    JOIN pg_catalog.pg_auth_members AS membership
+      ON membership.member = login_role.oid
+    JOIN pg_catalog.pg_roles AS granted_role
+      ON granted_role.oid = membership.roleid
+   WHERE granted_role.rolname <> expected.role_name
+   LIMIT 1;
+
+  IF unexpected_membership IS NOT NULL THEN
+    RAISE EXCEPTION
+      'unexpected direct service-role membership: %', unexpected_membership
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT format('%s -> %s', service_role.rolname, granted_role.rolname)
+    INTO unexpected_membership
+    FROM pg_catalog.pg_roles AS service_role
+    JOIN pg_catalog.pg_auth_members AS membership
+      ON membership.member = service_role.oid
+    JOIN pg_catalog.pg_roles AS granted_role
+      ON granted_role.oid = membership.roleid
+   WHERE service_role.rolname IN ('portal_dp_app', 'portal_dp_worker')
+   LIMIT 1;
+
+  IF unexpected_membership IS NOT NULL THEN
+    RAISE EXCEPTION
+      'service role must not be a member of another role: %', unexpected_membership
+      USING ERRCODE = '42501';
+  END IF;
+END
+$service_role_memberships$;
 
 DO $bootstrap_separation$
 BEGIN

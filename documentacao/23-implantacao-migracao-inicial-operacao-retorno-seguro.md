@@ -8,7 +8,8 @@
 > **Dados, arquitetura e contratos:** Documentos 18, 18A, 19, 20 e 20A aprovados.  
 > **Backlog, testes e gates:** Documentos 21, 21A e pacote 22/22A–22D aprovados.  
 > **Anexos executáveis:** Documentos 23A, 23B, 23C e 23D.  
-> **Código de produção:** ainda não iniciado.
+> **Estado na data da aprovação:** o código de produção ainda não havia sido iniciado.  
+> **Checkpoint posterior:** a baseline `ETP-00` está em implementação controlada conforme `docs/ETP-00.md`; nenhuma implantação de produção foi iniciada.
 
 ---
 
@@ -1233,5 +1234,5 @@ Nenhuma carga real ou implantação é iniciada agora.
 
 **Situação desta versão:** aprovada integralmente pelo usuário em 22/08/2026.  
 **Estados de execução:** `D23PlanningReady = true`; `CutoverReady = false`; `ProductionGo = false`; procedimentos `NOT_RUN_PLANNED`.  
-**Próxima ação:** preparar o repositório e iniciar a `ETP-00 — Baseline executável`, seguindo os Documentos 21 e 22.  
-**Código de produção:** ainda não iniciado.
+**Próxima ação na data da aprovação:** preparar o repositório e iniciar a `ETP-00 — Baseline executável`, seguindo os Documentos 21 e 22; o código de produção ainda não havia sido iniciado.  
+**Checkpoint posterior:** baseline em implementação controlada conforme `docs/ETP-00.md`; nenhuma carga real ou implantação de produção foi iniciada.

@@ -262,4 +262,5 @@ O Documento 23A fica operacionalmente completo somente quando:
 
 **Situação desta versão:** modelo concluído; valores reais permanecem explicitamente pendentes.  
 **Próxima ação:** aprovação do modelo com o Documento 23 e preenchimento progressivo durante o desenvolvimento.  
-**Código de produção:** ainda não iniciado.
+**Estado na data da aprovação:** o código de produção ainda não havia sido iniciado.  
+**Checkpoint posterior:** baseline `ETP-00` em implementação controlada conforme `docs/ETP-00.md`; nenhuma implantação de produção foi iniciada.

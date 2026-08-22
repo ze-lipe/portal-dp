@@ -21,7 +21,7 @@ export async function createApiApplication(
   // Estas opções impedem coerção silenciosa, remoção de campos e propriedades
   // especiais. Alterá-las exige nova avaliação de segurança.
   const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
+    AppModule.register(config),
     new FastifyAdapter({
       bodyLimit: 1024 * 1024,
       trustProxy: false,

@@ -10,7 +10,8 @@
 > **Backlog e ordem de execução:** Documentos 21 e 21A aprovados.  
 > **Anexos verificáveis:** Documento 22A — Matriz Executável de Casos, Perfis e Evidências; Documento 22B — Matriz de Conformidade das 60 Telas e Subfluxos; Documento 22C — Inventário Executável de Testes Técnicos e Contratos ASVS/WCAG; Documento 22D — Caderno Executável dos 25 Cenários Compostos Obrigatórios.  
 > **Sincronização técnica posterior:** testes `ENT-IMP-*`, `ProductionGo`, deltas e recuperação alinhados ao pacote 23, aprovado integralmente pelo usuário em 22/08/2026.  
-> **Código de produção:** ainda não iniciado.
+> **Estado na data da aprovação:** o código de produção ainda não havia sido iniciado.  
+> **Checkpoint posterior:** a implementação da baseline `ETP-00` está registrada em `docs/ETP-00.md`; nenhuma implantação de produção foi iniciada.
 
 ---
 
@@ -930,6 +931,30 @@ Cada controle recebe situação aplicável/não aplicável, justificativa, caso,
 
 Gerar e aprovar esse manifesto é condição de entrada e primeira atividade da ETP-00, antes do primeiro commit de código de produção, e não apenas uma prova de saída da etapa.
 
+A aprovação acima decide **aplicabilidade**: congela fonte, perfil, controles
+selecionados, exclusões justificadas e responsável pela decisão. Ela não declara
+que um controle passou. Para evitar que um mesmo estado represente três coisas
+diferentes, os gates ASVS ficam separados e falham fechados:
+
+1. `APLICABILIDADE`: aprovação nominal do manifesto imutável, já concluída;
+2. `RESULTADOS_ETP_00`: contribuição parcial das dez provas executáveis
+   delimitadas pela correção controlada `COR-ASVS-ETP00-001`; o inventário
+   original preserva 13 casos integrais, dos quais quatro permanecem diferidos
+   integralmente e `QAT-SEC-037` conserva somente a contribuição limitada desta
+   etapa; cada prova exige execução e artefato verificável, sem converter
+   automaticamente controles em `PASSOU`; a correção permanece pendente de
+   aprovação nominal de Segurança;
+3. `FECHAMENTO_INTEGRAL`: somente na ETP-11/GAT-10, quando os 211 controles
+   selecionados possuírem resultado executado e evidência verificável, sem
+   `ADIADO`.
+
+O manifesto de aplicabilidade aprovado permanece imutável. Seus campos de
+resultado `BLOQUEADO` retratam o instante da seleção e não viram um placar vivo.
+Resultados posteriores pertencem ao índice de evidências e ao manifesto de
+gates por etapa, ambos vinculados ao SHA-256 do objeto aprovado. Mudar perfil,
+seleção, justificativa ou controle invalida o vínculo e exige nova aprovação de
+aplicabilidade; mudar resultado de execução não reescreve a aprovação original.
+
 ## 20.2 Cenários adversariais mínimos
 
 - IDOR/BOLA entre empresas, escopos e incidentes;
@@ -1649,7 +1674,9 @@ O Documento 22 poderá ser aprovado quando o usuário confirmar que:
 - o Documento 22C contém exatamente os 119 casos técnicos, as 27 ameaças proprietárias e os contratos dos manifestos ASVS e WCAG;
 - o Documento 22D contém exatamente os 25 cenários compostos exigidos pelo Documento Mestre, sem campo obrigatório vazio e com 25 vínculos nominais resolvidos para testes, etapa, gate e evidência;
 - o pacote 23/23A–23D está aprovado integralmente pelo usuário;
-- nenhum código de produção foi iniciado; a primeira execução autorizada será a `ETP-00`.
+- na data da aprovação deste planejamento, nenhum código de produção havia sido
+  iniciado e a primeira execução então autorizada era a `ETP-00`; o checkpoint
+  técnico posterior está registrado em `docs/ETP-00.md`.
 
 ## 41.1 Verificação documental concluída
 
@@ -1676,7 +1703,7 @@ Esse resultado significa `PlanningReady = true`. Os testes do produto, homologa�
 
 ---
 
-# 42. Continuidade vigente
+# 42. Continuidade registrada na aprovação
 
 O pacote 23/23A–23D está aprovado integralmente. A continuidade é:
 
@@ -1688,5 +1715,5 @@ O pacote 23/23A–23D está aprovado integralmente. A continuidade é:
 ---
 
 **Situação desta versão:** aprovada integralmente pelo usuário em 22 de agosto de 2026.  
-**Continuidade vigente:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00 — Baseline executável`.  
-**Código de produção:** ainda não iniciado.
+**Continuidade na data da aprovação:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00 — Baseline executável`.  
+**Checkpoint posterior:** baseline `ETP-00` em implementação controlada conforme `docs/ETP-00.md`; produção não iniciada.

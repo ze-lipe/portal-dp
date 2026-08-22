@@ -10,6 +10,7 @@ import {
 } from "@portal-dp/contracts";
 import {
   SystemClock,
+  Version,
   planSyntheticEnterpriseMutation,
   syntheticActorId,
   syntheticCompanyId,
@@ -17,6 +18,7 @@ import {
   syntheticOperationId,
   syntheticOutboxId,
   syntheticRecordId,
+  type SyntheticRecord,
 } from "@portal-dp/domain";
 import type { Pool, PoolClient } from "pg";
 
@@ -33,15 +35,37 @@ export interface SyntheticProofCommand {
   idempotencyKey: string;
   code: string;
   value: string;
+  expectedVersion?: number;
+  expectedContextVersion?: number;
 }
 
-export interface SyntheticProofResult {
+export interface SyntheticProofCompletedResult {
   operacao_id: string;
   empresa_id: string;
   registro_id: string;
-  versao_final: 1;
+  versao_final: number;
   resultado: "CONCLUIDA" | "REPETICAO_RECONCILIADA";
 }
+
+export interface SyntheticProofInProgressResult {
+  operacao_id: string;
+  empresa_id: string;
+  registro_id: string;
+  resultado: "EM_PROCESSAMENTO";
+}
+
+export interface SyntheticProofNaturalKeyResult {
+  operacao_id: string;
+  empresa_id: string;
+  registro_id: string;
+  versao_final: number;
+  resultado: "CHAVE_NATURAL_EXISTENTE";
+}
+
+export type SyntheticProofResult =
+  | SyntheticProofCompletedResult
+  | SyntheticProofInProgressResult
+  | SyntheticProofNaturalKeyResult;
 
 export interface SyntheticProofInfrastructureIds {
   operationId: OperacaoId;
@@ -49,9 +73,20 @@ export interface SyntheticProofInfrastructureIds {
   privateObjectId: ArquivoPrivadoId;
 }
 
+export interface SyntheticProofPreconditions {
+  expectedContextVersion?: number;
+}
+
 type IdempotencyReplay = {
   status: "IN_PROGRESS" | "COMPLETED" | "FAILED";
   response_body: Record<string, unknown> | null;
+};
+
+type ExistingProofRow = {
+  id: string;
+  proof_key: string;
+  payload: Record<string, unknown>;
+  version: number;
 };
 
 type DeniedSyntheticProof = { denied: true };
@@ -62,14 +97,39 @@ const deniedSyntheticProof: DeniedSyntheticProof = Object.freeze({
   denied: true,
 });
 
+export class SyntheticVersionConflictError extends Error {
+  readonly code = "VERSAO_DESATUALIZADA";
+
+  constructor(readonly currentVersion: number) {
+    super("Synthetic record version is stale");
+    this.name = "SyntheticVersionConflictError";
+  }
+}
+
+export class SyntheticContextVersionConflictError extends Error {
+  readonly code = "CONTEXTO_DESATUALIZADO";
+
+  constructor(readonly currentContextVersion: number) {
+    super("Synthetic company context version is stale");
+    this.name = "SyntheticContextVersionConflictError";
+  }
+}
+
+export class SyntheticAuthorizationDeniedError extends Error {
+  readonly code = "RECURSO_NAO_ENCONTRADO";
+
+  constructor() {
+    super("Synthetic resource was not found");
+    this.name = "SyntheticAuthorizationDeniedError";
+  }
+}
+
 export async function executeSyntheticEnterpriseCommand(
   pool: Pool,
   command: SyntheticEnterpriseCommand,
   ids: SyntheticProofInfrastructureIds,
+  preconditions: SyntheticProofPreconditions = {},
 ): Promise<SyntheticEnterpriseResult> {
-  if (command.intencao.versao_esperada !== undefined) {
-    throw new Error("ETP-00 vertical proof accepts creation only");
-  }
   const result = await executeSyntheticProof(pool, {
     companyId: command.intencao.empresa_id,
     actorId: command.ator_id,
@@ -81,6 +141,12 @@ export async function executeSyntheticEnterpriseCommand(
     idempotencyKey: command.idempotency_key,
     code: command.intencao.codigo,
     value: command.intencao.valor,
+    ...(command.intencao.versao_esperada === undefined
+      ? {}
+      : { expectedVersion: command.intencao.versao_esperada }),
+    ...(preconditions.expectedContextVersion === undefined
+      ? {}
+      : { expectedContextVersion: preconditions.expectedContextVersion }),
   });
   return result as SyntheticEnterpriseResult;
 }
@@ -89,17 +155,7 @@ export async function executeSyntheticProof(
   pool: Pool,
   command: SyntheticProofCommand,
 ): Promise<SyntheticProofResult> {
-  const plan = planSyntheticEnterpriseMutation({
-    companyId: syntheticCompanyId(command.companyId),
-    actorId: syntheticActorId(command.actorId),
-    correlationId: syntheticCorrelationId(command.correlationId),
-    operationId: syntheticOperationId(command.operationId),
-    recordId: syntheticRecordId(command.proofRootId),
-    outboxId: syntheticOutboxId(command.outboxTaskId),
-    code: command.code,
-    value: command.value,
-    clock: new SystemClock(),
-  });
+  validateCommandPreconditions(command);
   const contractIntent = canonicalSyntheticIntent({
     empresa_id:
       command.companyId as SyntheticEnterpriseCommand["intencao"]["empresa_id"],
@@ -107,19 +163,12 @@ export async function executeSyntheticProof(
       command.proofRootId as SyntheticEnterpriseCommand["intencao"]["registro_id"],
     codigo: command.code,
     valor: command.value,
+    ...(command.expectedVersion === undefined
+      ? {}
+      : { versao_esperada: command.expectedVersion }),
   });
-  if (plan.canonicalIntent !== contractIntent) {
-    throw new Error("Synthetic intent canonicalization drift detected");
-  }
-  if (
-    command.idempotencyKey.length < 8 ||
-    command.idempotencyKey.length > 200
-  ) {
-    throw new Error(
-      "Idempotency key must contain between 8 and 200 characters",
-    );
-  }
-  const intentHash = createHash("sha256").update(plan.canonicalIntent).digest();
+  const intentHash = createHash("sha256").update(contractIntent).digest();
+
   const outcome = await withTenantTransaction<SyntheticProofTransactionOutcome>(
     pool,
     {
@@ -128,17 +177,30 @@ export async function executeSyntheticProof(
       correlationId: command.correlationId,
     },
     async (client) => {
-      // A autorização é relida e bloqueada antes de consultar a idempotência.
-      // Isso impede reproduzir uma resposta antiga depois da revogação do acesso.
+      // A autorização bloqueia empresa e concessão. A versão do contexto é
+      // comparada antes da reivindicação idempotente ou de qualquer mutação.
       const target = await client.query<{
         content_hash: Buffer;
         authorized: boolean;
+        context_version: number;
       }>(
-        `SELECT content_hash, authorized
-           FROM portal_dp.lock_synthetic_authorization()`,
+        `SELECT auth_state.content_hash,
+                auth_state.authorized,
+                company.version AS context_version
+           FROM portal_dp.lock_synthetic_authorization() AS auth_state
+           JOIN portal_dp.companies AS company
+             ON company.id = portal_dp.current_company_id()`,
       );
       const targetState = target.rows[0];
       if (!targetState) return deniedSyntheticProof;
+      if (
+        command.expectedContextVersion !== undefined &&
+        targetState.context_version !== command.expectedContextVersion
+      ) {
+        throw new SyntheticContextVersionConflictError(
+          targetState.context_version,
+        );
+      }
 
       const claim = await client.query<{ claimed: boolean }>(
         "SELECT portal_dp.claim_idempotency($1, $2, $3, $4) AS claimed",
@@ -157,35 +219,86 @@ export async function executeSyntheticProof(
       }
       if (!claimed) return reconcileExisting(client, command);
 
-      // Negócio, auditoria, outbox e conclusão idempotente pertencem à mesma
-      // transação: se qualquer parte falhar, todas as demais são desfeitas.
-      await client.query(
-        `INSERT INTO portal_dp.enterprise_proof_roots
-          (company_id, id, proof_key, payload, version, created_by, updated_by)
-         VALUES ($1, $2, $3, $4::jsonb, 1, $5, $5)`,
-        [
-          command.companyId,
-          command.proofRootId,
-          plan.record.code,
-          JSON.stringify({
-            code: plan.record.code,
-            value: plan.record.value,
-            synthetic: true,
-          }),
-          command.actorId,
-        ],
-      );
+      const existing = await readProofForUpdate(client, command.proofRootId);
+      if (command.expectedVersion !== undefined && !existing) {
+        await persistDeniedAttempt(client, command, intentHash, true);
+        return deniedSyntheticProof;
+      }
+      if (
+        existing &&
+        command.expectedVersion !== undefined &&
+        existing.version !== command.expectedVersion
+      ) {
+        throw new SyntheticVersionConflictError(existing.version);
+      }
+      if (existing && command.expectedVersion === undefined) {
+        throw new SyntheticVersionConflictError(existing.version);
+      }
 
-      const evidence = Buffer.from(
-        JSON.stringify({
-          schema: "ETP00_PRIVATE_EVIDENCE_V1",
-          companyId: command.companyId,
-          proofRootId: command.proofRootId,
-          operationId: command.operationId,
-          synthetic: true,
-        }),
-        "utf8",
-      );
+      const plan = planMutation(command, existing);
+      if (plan.canonicalIntent !== contractIntent) {
+        throw new Error("Synthetic intent canonicalization drift detected");
+      }
+
+      if (existing) {
+        const updated = await client.query<{ id: string }>(
+          `UPDATE portal_dp.enterprise_proof_roots
+              SET proof_key = $3,
+                  payload = $4::jsonb,
+                  version = $5,
+                  updated_at = clock_timestamp(),
+                  updated_by = $6
+            WHERE company_id = $1
+              AND id = $2
+              AND version = $7
+          RETURNING id`,
+          [
+            command.companyId,
+            command.proofRootId,
+            plan.record.code,
+            JSON.stringify({
+              code: plan.record.code,
+              value: plan.record.value,
+              synthetic: true,
+            }),
+            plan.record.version.value,
+            command.actorId,
+            command.expectedVersion,
+          ],
+        );
+        if (updated.rowCount !== 1) {
+          throw new SyntheticVersionConflictError(existing.version);
+        }
+      } else {
+        const inserted = await client.query<{ id: string }>(
+          `INSERT INTO portal_dp.enterprise_proof_roots
+            (company_id, id, proof_key, payload, version, created_by, updated_by)
+           VALUES ($1, $2, $3, $4::jsonb, 1, $5, $5)
+           ON CONFLICT (company_id, proof_key) DO NOTHING
+           RETURNING id`,
+          [
+            command.companyId,
+            command.proofRootId,
+            plan.record.code,
+            JSON.stringify({
+              code: plan.record.code,
+              value: plan.record.value,
+              synthetic: true,
+            }),
+            command.actorId,
+          ],
+        );
+        if (inserted.rowCount !== 1) {
+          return persistNaturalKeyConflict(
+            client,
+            command,
+            intentHash,
+            plan.record.code,
+          );
+        }
+      }
+
+      const evidence = createPrivateEvidence(command);
       const evidenceHash = createHash("sha256").update(evidence).digest("hex");
       const auditSequence = await nextAuditEventSequence(
         client,
@@ -199,9 +312,9 @@ export async function executeSyntheticProof(
            result, entity_type, entity_id, previous_version, final_version,
            change_set)
          VALUES ($1, $2, $3, $2, $8, $4, $3, $5,
-                 'ETP00-PROOF-CREATE',
+                 $9,
                  'ETP00.REGISTRO_SINTETICO.GRAVAR',
-                 'SUCESSO', 'enterprise_proof_root', $6, NULL, 1,
+                 'SUCESSO', 'enterprise_proof_root', $6, $10, $11,
                  $7::jsonb)`,
         [
           command.companyId,
@@ -219,6 +332,9 @@ export async function executeSyntheticProof(
             })),
           }),
           auditSequence,
+          existing ? "ETP00-PROOF-UPDATE" : "ETP00-PROOF-CREATE",
+          plan.audit.previousVersion?.value ?? null,
+          plan.audit.finalVersion.value,
         ],
       );
       await client.query(
@@ -247,16 +363,21 @@ export async function executeSyntheticProof(
         ],
       );
 
-      const result: SyntheticProofResult = {
+      const result: SyntheticProofCompletedResult = {
         operacao_id: command.operationId,
         empresa_id: command.companyId,
         registro_id: command.proofRootId,
-        versao_final: 1,
+        versao_final: plan.record.version.value,
         resultado: "CONCLUIDA",
       };
       const completion = await client.query<{ completed: boolean }>(
-        `SELECT portal_dp.complete_idempotency($1, $2, 201, $3::jsonb) AS completed`,
-        [command.idempotencyKey, intentHash, JSON.stringify(result)],
+        `SELECT portal_dp.complete_idempotency($1, $2, $3, $4::jsonb) AS completed`,
+        [
+          command.idempotencyKey,
+          intentHash,
+          existing ? 200 : 201,
+          JSON.stringify(result),
+        ],
       );
       if (!completion.rows[0]?.completed) {
         throw new Error("Idempotency completion was not applied");
@@ -265,18 +386,171 @@ export async function executeSyntheticProof(
     },
   );
   if ("denied" in outcome) {
-    throw new Error("Synthetic operation is not authorized");
+    // A fronteira HTTP transforma esta negação tipada em 404 neutro. O motivo
+    // real permanece apenas na auditoria protegida do mesmo tenant.
+    throw new SyntheticAuthorizationDeniedError();
   }
   return outcome;
+}
+
+function validateCommandPreconditions(command: SyntheticProofCommand): void {
+  if (
+    command.idempotencyKey.length < 8 ||
+    command.idempotencyKey.length > 200
+  ) {
+    throw new Error(
+      "Idempotency key must contain between 8 and 200 characters",
+    );
+  }
+  for (const [name, value] of [
+    ["expectedVersion", command.expectedVersion],
+    ["expectedContextVersion", command.expectedContextVersion],
+  ] as const) {
+    if (value !== undefined && (!Number.isSafeInteger(value) || value < 1)) {
+      throw new Error(`${name} must be a positive safe integer`);
+    }
+  }
+}
+
+function planMutation(
+  command: SyntheticProofCommand,
+  existing: ExistingProofRow | undefined,
+) {
+  const existingRecord: SyntheticRecord | undefined = existing
+    ? {
+        id: syntheticRecordId(existing.id),
+        companyId: syntheticCompanyId(command.companyId),
+        code: existing.proof_key,
+        value: readSyntheticValue(existing.payload),
+        version: Version.of(existing.version),
+      }
+    : undefined;
+  return planSyntheticEnterpriseMutation({
+    companyId: syntheticCompanyId(command.companyId),
+    actorId: syntheticActorId(command.actorId),
+    correlationId: syntheticCorrelationId(command.correlationId),
+    operationId: syntheticOperationId(command.operationId),
+    recordId: syntheticRecordId(command.proofRootId),
+    outboxId: syntheticOutboxId(command.outboxTaskId),
+    code: command.code,
+    value: command.value,
+    clock: new SystemClock(),
+    ...(command.expectedVersion === undefined
+      ? {}
+      : { expectedVersion: Version.of(command.expectedVersion) }),
+    ...(existingRecord === undefined ? {} : { existing: existingRecord }),
+  });
+}
+
+function readSyntheticValue(payload: Record<string, unknown>): string {
+  const value = payload["value"];
+  if (typeof value !== "string") {
+    throw new Error("Stored synthetic record payload is invalid");
+  }
+  return value;
+}
+
+async function readProofForUpdate(
+  client: PoolClient,
+  proofRootId: string,
+): Promise<ExistingProofRow | undefined> {
+  const result = await client.query<ExistingProofRow>(
+    `SELECT id, proof_key, payload, version
+       FROM portal_dp.enterprise_proof_roots
+      WHERE id = $1
+      FOR UPDATE`,
+    [proofRootId],
+  );
+  return result.rows[0];
+}
+
+function createPrivateEvidence(command: SyntheticProofCommand): Buffer {
+  return Buffer.from(
+    JSON.stringify({
+      schema: "ETP00_PRIVATE_EVIDENCE_V1",
+      companyId: command.companyId,
+      proofRootId: command.proofRootId,
+      operationId: command.operationId,
+      synthetic: true,
+    }),
+    "utf8",
+  );
+}
+
+async function persistNaturalKeyConflict(
+  client: PoolClient,
+  command: SyntheticProofCommand,
+  intentHash: Buffer,
+  proofKey: string,
+): Promise<SyntheticProofNaturalKeyResult> {
+  // O perdedor da corrida só recebe o identificador e a versão da entidade que
+  // a própria autorização empresarial permite consultar; nenhum dado é vazado.
+  const existing = await client.query<{ id: string; version: number }>(
+    `SELECT id, version
+       FROM portal_dp.enterprise_proof_roots
+      WHERE proof_key = $1`,
+    [proofKey],
+  );
+  const record = existing.rows[0];
+  if (!record) {
+    throw new Error("Natural key conflict could not be reconciled");
+  }
+  const eventSequence = await nextAuditEventSequence(
+    client,
+    command.operationId,
+  );
+  await client.query(
+    `INSERT INTO portal_dp.audit_events
+      (company_id, id, actor_id, operation_id, event_sequence,
+       correlation_id, idempotency_actor_id, idempotency_key,
+       transition_id, action_code, result, entity_type, entity_id,
+       safe_error_reference, change_set)
+     VALUES ($1, $2, $3, $2, $4, $5, $3, $6,
+             'ETP00-PROOF-NATURAL-KEY-CONFLICT',
+             'ETP00.REGISTRO_SINTETICO.GRAVAR', 'CANCELADO',
+             'enterprise_proof_root', $7,
+             'CHAVE_NATURAL_EXISTENTE', '{"mudancas":[]}'::jsonb)`,
+    [
+      command.companyId,
+      command.operationId,
+      command.actorId,
+      eventSequence,
+      command.correlationId,
+      command.idempotencyKey,
+      record.id,
+    ],
+  );
+  const result: SyntheticProofNaturalKeyResult = {
+    operacao_id: command.operationId,
+    empresa_id: command.companyId,
+    registro_id: record.id,
+    versao_final: record.version,
+    resultado: "CHAVE_NATURAL_EXISTENTE",
+  };
+  const completion = await client.query<{ completed: boolean }>(
+    `SELECT portal_dp.complete_idempotency($1, $2, 409, $3::jsonb) AS completed`,
+    [command.idempotencyKey, intentHash, JSON.stringify(result)],
+  );
+  if (!completion.rows[0]?.completed) {
+    throw new Error("Natural key conflict completion was not applied");
+  }
+  return result;
 }
 
 async function reconcileExisting(
   client: PoolClient,
   command: SyntheticProofCommand,
 ): Promise<SyntheticProofTransactionOutcome> {
-  // Estado incerto nunca dispara a mutação novamente. O chamador primeiro
-  // reconcilia o resultado persistido para não criar um efeito duplicado.
+  // Estado em processamento é consultável, mas nunca reinicia a mutação.
   const record = await readExistingIdempotency(client, command);
+  if (record?.status === "IN_PROGRESS") {
+    return {
+      operacao_id: command.operationId,
+      empresa_id: command.companyId,
+      registro_id: command.proofRootId,
+      resultado: "EM_PROCESSAMENTO",
+    };
+  }
   if (record?.status !== "COMPLETED" || !record.response_body) {
     throw new Error(
       "Idempotent operation outcome is uncertain; reconcile before retrying",
@@ -285,11 +559,20 @@ async function reconcileExisting(
   if (record.response_body["resultado"] === "NEGADO") {
     return deniedSyntheticProof;
   }
+  if (record.response_body["resultado"] === "CHAVE_NATURAL_EXISTENTE") {
+    return {
+      operacao_id: String(record.response_body["operacao_id"]),
+      empresa_id: String(record.response_body["empresa_id"]),
+      registro_id: String(record.response_body["registro_id"]),
+      versao_final: Number(record.response_body["versao_final"]),
+      resultado: "CHAVE_NATURAL_EXISTENTE",
+    };
+  }
   return {
     operacao_id: String(record.response_body["operacao_id"]),
     empresa_id: String(record.response_body["empresa_id"]),
     registro_id: String(record.response_body["registro_id"]),
-    versao_final: 1,
+    versao_final: Number(record.response_body["versao_final"]),
     resultado: "REPETICAO_RECONCILIADA",
   };
 }

@@ -1,0 +1,434 @@
+{
+  "schemaVersion": 1,
+  "reportType": "INVENTARIO_DE_COBERTURA_AUTOMATIZADA",
+  "scope": {
+    "stage": "ETP-00",
+    "suite": "ST-18",
+    "expectedUiCases": 28,
+    "expectedConcurrencyPolicies": 9,
+    "expectedTotal": 37
+  },
+  "sourceOfTruth": {
+    "stateMatrix": "documentacao/17-matriz-formal-estados-transicoes.md",
+    "executableMatrix": "documentacao/22a-matriz-executavel-casos-perfis-evidencias.md"
+  },
+  "interpretation": {
+    "BASE_AUTOMATIZADA": "Existe teste automatizado para o comportamento-base do caso; isso não substitui a conformidade reaplicada a cada tela ou operação futura.",
+    "PARCIAL": "Existe teste automatizado para parte do caso, e a lacuna restante está declarada no próprio item.",
+    "SEM_PROVA_AUTOMATIZADA_EXPLICITA": "Não foi localizada prova automatizada explícita para o caso.",
+    "executionClaim": "NAO_SUBSTITUI_RESULTADO_DE_EXECUCAO",
+    "note": "Este inventário prova rastreabilidade entre casos e testes existentes. Aprovação, resultado de execução e fechamento de gate pertencem ao manifesto imutável da execução real."
+  },
+  "evidenceCatalog": {
+    "AUT-UI-MACHINE": {
+      "level": "NIV-COMP",
+      "file": "apps/web/src/ui-foundation.test.ts",
+      "anchor": "const approvedTransitions = [",
+      "description": "Tabela automatizada das transições UI-01–26 e invariantes de falha fechada."
+    },
+    "AUT-CON-VERSION-SUCCESS": {
+      "level": "NIV-UNIT",
+      "file": "packages/domain/tests/minimum-business-model.test.ts",
+      "anchor": "versiona sem alterar a versão anterior",
+      "description": "Versionamento puro n para n+1 sem mutar a versão anterior."
+    },
+    "AUT-CON-VERSION-STALE": {
+      "level": "NIV-UNIT",
+      "file": "packages/domain/tests/minimum-business-model.test.ts",
+      "anchor": "recusa concessão fora do catálogo e versão obsoleta",
+      "description": "Recusa de versão esperada obsoleta no domínio."
+    },
+    "AUT-CON-ATOMIC-CREATE": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/00-synthetic-vertical-proof.integration.test.ts",
+      "anchor": "commits business, audit, idempotency and outbox atomically for company A",
+      "description": "Criação sintética conclui negócio, auditoria, idempotência e outbox na mesma transação."
+    },
+    "AUT-CON-IDEMPOTENCY-CLAIM": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/etp00-postgresql.integration.test.ts",
+      "anchor": "claims idempotency once and rejects reuse for another intent",
+      "description": "Primeira reivindicação vence; repetição da mesma chave não reivindica novamente e intenção divergente falha."
+    },
+    "AUT-CON-REPLAY": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/00-synthetic-vertical-proof.integration.test.ts",
+      "anchor": "reconciles a lost response and rejects a reused key with another intent",
+      "description": "Repetição concluída reconcilia o resultado anterior sem duplicar negócio ou tarefa."
+    },
+    "AUT-CON-UNIQUE-OBJECT": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/etp00-postgresql.integration.test.ts",
+      "anchor": "keeps private object metadata isolated and exposes no public URL",
+      "description": "Restrição única impede materializar duas referências do mesmo objeto privado."
+    },
+    "AUT-CON-AUDIT-ROLLBACK": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/etp00-postgresql.integration.test.ts",
+      "anchor": "rolls back the business mutation when mandatory audit fails",
+      "description": "Falha da auditoria obrigatória reverte a mutação de negócio."
+    },
+    "AUT-CON-AUTH-REPLAY": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/00-synthetic-vertical-proof.integration.test.ts",
+      "anchor": "revalidates authorization before replay and audits a revoked attempt neutrally",
+      "description": "Repetição relê autorização e nega de forma neutra depois da revogação."
+    },
+    "AUT-CON-AUTH-FENCE": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/00-synthetic-vertical-proof.integration.test.ts",
+      "anchor": "holds the authorization grant fence until the business transaction ends",
+      "description": "O bloqueio de autorização impede revogação silenciosa durante a transação."
+    },
+    "AUT-CON-NO-CONTEXT": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/etp00-postgresql.integration.test.ts",
+      "anchor": "defaults every tenant relation to no rows when context is absent",
+      "description": "Relações empresariais ficam sem linhas visíveis quando o contexto de empresa está ausente."
+    },
+    "AUT-CON-VERSION-ATOMIC-PG": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/00-synthetic-vertical-proof.integration.test.ts",
+      "anchor": "CON-01 e CON-02: a fronteira HTTP usa PostgreSQL real",
+      "description": "Atualização n para n+1 persiste registro, auditoria, idempotência e outbox na mesma transação PostgreSQL."
+    },
+    "AUT-CON-VERSION-STALE-HTTP-PG": {
+      "level": "NIV-API",
+      "file": "tests/integration/database/00-synthetic-vertical-proof.integration.test.ts",
+      "anchor": "valor-que-nao-pode-sobrescrever",
+      "description": "Fronteira HTTP recusa versão obsoleta, não grava e devolve apenas Problem Details e a versão atual."
+    },
+    "AUT-CON-IN-PROGRESS": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/00-synthetic-vertical-proof.integration.test.ts",
+      "anchor": "CON-05: uma operação já reivindicada permanece em andamento",
+      "description": "Serviço devolve EM_PROCESSAMENTO para claim ativo sem criar segundo efeito."
+    },
+    "AUT-CON-NATURAL-RACE": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/00-synthetic-vertical-proof.integration.test.ts",
+      "anchor": "CON-06: duas criações realmente concorrentes",
+      "description": "Corrida real sobre chave natural cria uma entidade e associa o perdedor autorizado ao registro vencedor."
+    },
+    "AUT-CON-CONTEXT-VERSION": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/00-synthetic-vertical-proof.integration.test.ts",
+      "anchor": "CON-08: a versão de contexto divergente interrompe o comando",
+      "description": "Versão de contexto divergente cancela o comando antes do claim e de qualquer commit empresarial."
+    },
+    "AUT-CON-CONTEXT-DRAFT-CLEAR": {
+      "level": "NIV-COMP",
+      "file": "apps/web/src/ui-foundation.test.ts",
+      "anchor": "descarta o rascunho sensível quando a versão do contexto diverge",
+      "description": "A máquina visual elimina os dados do rascunho ao invalidar o contexto."
+    },
+    "AUT-CON-TASK-NO-COMPANY": {
+      "level": "NIV-PG",
+      "file": "tests/integration/database/etp00-postgresql.integration.test.ts",
+      "anchor": "CON-09: uma tarefa empresarial sem empresa falha no PostgreSQL",
+      "description": "Tarefa sem empresa falha fechada no banco e gera somente código operacional sanitizado."
+    }
+  },
+  "cases": [
+    {
+      "caseId": "TST-UI-01",
+      "transitionId": "UI-01",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-01"
+    },
+    {
+      "caseId": "TST-UI-02",
+      "transitionId": "UI-02",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-02"
+    },
+    {
+      "caseId": "TST-UI-03",
+      "transitionId": "UI-03",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-03"
+    },
+    {
+      "caseId": "TST-UI-04",
+      "transitionId": "UI-04",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-04"
+    },
+    {
+      "caseId": "TST-UI-05",
+      "transitionId": "UI-05",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-05"
+    },
+    {
+      "caseId": "TST-UI-06",
+      "transitionId": "UI-06",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-06"
+    },
+    {
+      "caseId": "TST-UI-07",
+      "transitionId": "UI-07",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-07"
+    },
+    {
+      "caseId": "TST-UI-08",
+      "transitionId": "UI-08",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-08"
+    },
+    {
+      "caseId": "TST-UI-08A",
+      "transitionId": "UI-08A",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-08A"
+    },
+    {
+      "caseId": "TST-UI-09",
+      "transitionId": "UI-09",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-09"
+    },
+    {
+      "caseId": "TST-UI-10",
+      "transitionId": "UI-10",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-10"
+    },
+    {
+      "caseId": "TST-UI-10A",
+      "transitionId": "UI-10A",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selectors": ["UI-10A-interna", "UI-10A-seletor"]
+    },
+    {
+      "caseId": "TST-UI-11",
+      "transitionId": "UI-11",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-11"
+    },
+    {
+      "caseId": "TST-UI-12",
+      "transitionId": "UI-12",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-12"
+    },
+    {
+      "caseId": "TST-UI-13",
+      "transitionId": "UI-13",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-13"
+    },
+    {
+      "caseId": "TST-UI-14",
+      "transitionId": "UI-14",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-14"
+    },
+    {
+      "caseId": "TST-UI-15",
+      "transitionId": "UI-15",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-15"
+    },
+    {
+      "caseId": "TST-UI-16",
+      "transitionId": "UI-16",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-16"
+    },
+    {
+      "caseId": "TST-UI-17",
+      "transitionId": "UI-17",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selectors": ["UI-17-interna", "UI-17-contexto"]
+    },
+    {
+      "caseId": "TST-UI-18",
+      "transitionId": "UI-18",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-18"
+    },
+    {
+      "caseId": "TST-UI-19",
+      "transitionId": "UI-19",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-19"
+    },
+    {
+      "caseId": "TST-UI-20",
+      "transitionId": "UI-20",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-20"
+    },
+    {
+      "caseId": "TST-UI-21",
+      "transitionId": "UI-21",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-21"
+    },
+    {
+      "caseId": "TST-UI-22",
+      "transitionId": "UI-22",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-22"
+    },
+    {
+      "caseId": "TST-UI-23",
+      "transitionId": "UI-23",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-23"
+    },
+    {
+      "caseId": "TST-UI-24",
+      "transitionId": "UI-24",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-24"
+    },
+    {
+      "caseId": "TST-UI-25",
+      "transitionId": "UI-25",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-25"
+    },
+    {
+      "caseId": "TST-UI-26",
+      "transitionId": "UI-26",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-UI-MACHINE"],
+      "selector": "UI-26"
+    },
+    {
+      "caseId": "TST-CON-01",
+      "transitionId": "CON-01",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": [
+        "AUT-CON-VERSION-SUCCESS",
+        "AUT-CON-ATOMIC-CREATE",
+        "AUT-CON-VERSION-ATOMIC-PG"
+      ]
+    },
+    {
+      "caseId": "TST-CON-02",
+      "transitionId": "CON-02",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": [
+        "AUT-CON-VERSION-STALE",
+        "AUT-CON-VERSION-STALE-HTTP-PG"
+      ]
+    },
+    {
+      "caseId": "TST-CON-03",
+      "transitionId": "CON-03",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": [
+        "AUT-CON-ATOMIC-CREATE",
+        "AUT-CON-IDEMPOTENCY-CLAIM"
+      ],
+      "gaps": [
+        "Reaplicar a política a cada comando empresarial real criado nas etapas posteriores."
+      ]
+    },
+    {
+      "caseId": "TST-CON-04",
+      "transitionId": "CON-04",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-CON-REPLAY"],
+      "gaps": [
+        "Reaplicar a reconciliação aos tipos reais de exame, clínica, exportação, incidente e entrada quando forem implementados."
+      ]
+    },
+    {
+      "caseId": "TST-CON-05",
+      "transitionId": "CON-05",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": [
+        "AUT-CON-IDEMPOTENCY-CLAIM",
+        "AUT-CON-IN-PROGRESS"
+      ]
+    },
+    {
+      "caseId": "TST-CON-06",
+      "transitionId": "CON-06",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": [
+        "AUT-CON-UNIQUE-OBJECT",
+        "AUT-CON-NATURAL-RACE"
+      ]
+    },
+    {
+      "caseId": "TST-CON-07",
+      "transitionId": "CON-07",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": ["AUT-CON-AUDIT-ROLLBACK"],
+      "gaps": [
+        "Reaplicar a falha de auditoria às mutações críticas de cada módulo futuro."
+      ]
+    },
+    {
+      "caseId": "TST-CON-08",
+      "transitionId": "CON-08",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": [
+        "AUT-CON-AUTH-REPLAY",
+        "AUT-CON-AUTH-FENCE",
+        "AUT-CON-CONTEXT-VERSION",
+        "AUT-CON-CONTEXT-DRAFT-CLEAR"
+      ]
+    },
+    {
+      "caseId": "TST-CON-09",
+      "transitionId": "CON-09",
+      "coverage": "BASE_AUTOMATIZADA",
+      "evidenceRefs": [
+        "AUT-CON-NO-CONTEXT",
+        "AUT-CON-TASK-NO-COMPANY"
+      ]
+    }
+  ],
+  "summary": {
+    "ui": {
+      "BASE_AUTOMATIZADA": 28,
+      "PARCIAL": 0,
+      "SEM_PROVA_AUTOMATIZADA_EXPLICITA": 0
+    },
+    "concurrency": {
+      "BASE_AUTOMATIZADA": 9,
+      "PARCIAL": 0,
+      "SEM_PROVA_AUTOMATIZADA_EXPLICITA": 0
+    },
+    "total": {
+      "BASE_AUTOMATIZADA": 37,
+      "PARCIAL": 0,
+      "SEM_PROVA_AUTOMATIZADA_EXPLICITA": 0
+    }
+  }
+}

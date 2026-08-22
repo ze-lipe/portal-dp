@@ -42,6 +42,27 @@ for (const operation of manifest.operations) {
       `Operation ${operation.operationId} has incomplete ownership metadata`,
     );
   }
+  if (
+    !Array.isArray(operation.responseStatuses) ||
+    operation.responseStatuses.length === 0
+  ) {
+    errors.push(`Operation ${operation.operationId} has no response contract`);
+  } else {
+    for (const status of operation.responseStatuses) {
+      if (!pathBlock.includes(`        '${status}':`)) {
+        errors.push(
+          `Operation ${operation.operationId} is missing response ${status}`,
+        );
+      }
+    }
+  }
+  for (const value of operation.responseResultValues ?? []) {
+    if (!openapi.includes(value)) {
+      errors.push(
+        `Operation ${operation.operationId} is missing result ${value}`,
+      );
+    }
+  }
 }
 
 const declaredOpenApiIds = [

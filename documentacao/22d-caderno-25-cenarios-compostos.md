@@ -336,5 +336,5 @@ Cada cenário precisa passar integralmente em domínio, persistência, autoriza�
 ---
 
 **Situação desta versão:** 25 cenários compostos materializados, revisados e aprovados pelo usuário.  
-**Continuidade vigente:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`; execução permanece `NOT_RUN_PLANNED`.  
-**Código de produção:** ainda não iniciado.
+**Continuidade na data da aprovação:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`; o código de produção ainda não havia sido iniciado.  
+**Checkpoint posterior:** baseline em implementação controlada conforme `docs/ETP-00.md`; os gates formais permanecem `NOT_RUN_PLANNED` e nenhuma implantação de produção foi iniciada.

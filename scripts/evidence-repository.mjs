@@ -13,8 +13,16 @@ import {
 import { createReadStream } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
-export const EVIDENCE_CONTRACT_VERSION = "portal-dp/evidence-repository@1.0.0";
-export const EVIDENCE_SCHEMA_VERSION = 1;
+export const EVIDENCE_CONTRACT_VERSION = "portal-dp/evidence-repository@1.1.0";
+export const EVIDENCE_SCHEMA_VERSION = 2;
+
+const ETP00_REQUIRED_GITHUB_JOBS = [
+  "planning-windows",
+  "code-and-postgres",
+  "secret-scan",
+  "sast",
+  "oci-image",
+];
 
 export function etp00EvidenceRequirements(provider, outcomes) {
   if (provider !== "github-actions") return [];
@@ -24,21 +32,33 @@ export function etp00EvidenceRequirements(provider, outcomes) {
       match: "**/evidence-run-context.json",
     },
   ];
-  if (outcomes["code-and-postgres"] === "success") {
+  if (["success", "failure"].includes(outcomes["code-and-postgres"])) {
     requirements.push(
+      { id: "UNIT_TEST_REPORT", match: "**/unit-tests.log" },
       { id: "DATABASE_TEST_REPORT", match: "**/gat-02-vitest.json" },
       { id: "SCA_REPORT", match: "**/pnpm-audit-production.json" },
       { id: "LICENSE_REPORT", match: "**/licenses-production.json" },
-      { id: "SBOM", match: "**/*.cdx.json" },
+      { id: "SBOM", match: "**/*.cdx.json", minimumCount: 11 },
     );
   }
   if (["success", "failure"].includes(outcomes["sast"])) {
     requirements.push({ id: "SAST_REPORT", match: "**/sast-semgrep.json" });
   }
-  if (outcomes["oci-image"] === "success") {
+  if (["success", "failure"].includes(outcomes["secret-scan"])) {
+    requirements.push({
+      id: "SECRET_SCAN_REPORT",
+      match: "**/gitleaks-result.json",
+    });
+  }
+  if (["success", "failure"].includes(outcomes["oci-image"])) {
     requirements.push(
+      {
+        id: "BUILD_TOOLCHAIN_VERIFICATION",
+        match: "**/build-toolchain-verification.json",
+      },
       { id: "OCI_ARTIFACT", match: "**/portal-dp.oci.tar" },
       { id: "OCI_DIGEST", match: "**/portal-dp.oci.sha256" },
+      { id: "OCI_BUILD_LINK", match: "**/oci-build-link.json" },
       { id: "OCI_API_READY", match: "**/oci-api-ready.json" },
       {
         id: "OCI_API_SESSION_CHECK",
@@ -50,6 +70,10 @@ export function etp00EvidenceRequirements(provider, outcomes) {
       },
       { id: "TRIVY_IMAGE_REPORT", match: "**/trivy-image.json" },
       { id: "TRIVY_CONFIG_REPORT", match: "**/trivy-config.json" },
+      {
+        id: "SECURITY_CONFIGURATION_VERIFICATION",
+        match: "**/security-configuration-verification.json",
+      },
     );
   }
   return requirements;
@@ -181,7 +205,7 @@ function globExpression(pattern) {
   return new RegExp(`${expression}$`, "u");
 }
 
-async function loadBindings(path) {
+export async function loadEvidenceBindings(path) {
   const bytes = await readFile(path);
   const parsed = JSON.parse(bytes.toString("utf8"));
   if (parsed.schemaVersion !== 1) fail("unsupported evidence binding schema");
@@ -208,7 +232,7 @@ async function loadBindings(path) {
   };
 }
 
-function bindingFor(path, catalog) {
+export function bindingForEvidence(path, catalog) {
   const matched = catalog.rules.filter((rule) => rule.expression.test(path));
   if (matched.length === 0) fail(`no case binding for ${path}`);
   return {
@@ -249,7 +273,7 @@ async function captureFile({ sourcePath, logicalPath, temporaryRun, catalog }) {
   await mkdir(dirname(destination), { recursive: true });
   if (await exists(destination)) await rm(temporaryObject, { force: true });
   else await rename(temporaryObject, destination);
-  const binding = bindingFor(logicalPath, catalog);
+  const binding = bindingForEvidence(logicalPath, catalog);
   return {
     sourcePath: logicalPath,
     storedPath,
@@ -447,6 +471,15 @@ function validateExecution(execution) {
     if (!/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/u.test(execution.revision)) {
       fail("execution.revision must be a Git commit SHA in GitHub Actions");
     }
+    for (const job of ETP00_REQUIRED_GITHUB_JOBS) {
+      if (
+        !["success", "failure", "cancelled", "skipped"].includes(
+          execution.outcomes[job],
+        )
+      ) {
+        fail(`execution.outcomes must record the GitHub job ${job}`);
+      }
+    }
   }
 }
 
@@ -455,6 +488,7 @@ function evaluateCompleteness({
   requirements,
   downloadOutcome,
   acl,
+  execution,
 }) {
   const requirementIds = new Set();
   const evaluated = (requirements ?? []).map((requirement, index) => {
@@ -505,14 +539,26 @@ function evaluateCompleteness({
         artifact.sourcePath === acl.retention.longTermReceiptSourcePath &&
         artifact.sha256 === acl.retention.longTermReceiptSha256,
     );
+  // Um pacote preserva tambem execucoes reprovadas, mas nunca pode chamar uma
+  // execucao reprovada de completa apenas porque seus arquivos foram coletados.
+  const requiredExecutionJobs =
+    execution.provider === "github-actions" ? ETP00_REQUIRED_GITHUB_JOBS : [];
+  const unsuccessfulExecutionJobs = requiredExecutionJobs.filter(
+    (job) => execution.outcomes[job] !== "success",
+  );
+  const executionSatisfied = unsuccessfulExecutionJobs.length === 0;
   return {
     artifactDownloadOutcome: downloadOutcome,
     transportSatisfied,
     retentionSatisfied,
+    executionSatisfied,
+    requiredExecutionJobs,
+    unsuccessfulExecutionJobs,
     requirements: evaluated,
     complete:
       transportSatisfied &&
       retentionSatisfied &&
+      executionSatisfied &&
       evaluated.every((requirement) => requirement.satisfied),
   };
 }
@@ -547,7 +593,12 @@ function validateCompleteness(completeness, artifacts, acl, execution) {
     const declared = completeness.requirements?.find(
       (requirement) => requirement.id === expected.id,
     );
-    if (!declared || declared.match !== expected.match) {
+    if (
+      !declared ||
+      declared.match !== expected.match ||
+      declared.minimumCount !== (expected.minimumCount ?? 1) ||
+      declared.minimumBytes !== (expected.minimumBytes ?? 1)
+    ) {
       fail(`missing mandatory evidence requirement ${expected.id}`);
     }
   }
@@ -556,6 +607,7 @@ function validateCompleteness(completeness, artifacts, acl, execution) {
     requirements: completeness.requirements,
     downloadOutcome: completeness.artifactDownloadOutcome,
     acl,
+    execution,
   });
   if (JSON.stringify(completeness) !== JSON.stringify(recalculated)) {
     fail("evidence completeness result is inconsistent");
@@ -700,7 +752,7 @@ export async function finalizeEvidenceRun(options) {
     fail("evidence source directory does not exist");
   const files = await collectFiles(sourceDirectory);
   if (files.length === 0) fail("evidence source directory is empty");
-  const catalog = await loadBindings(bindingsPath);
+  const catalog = await loadEvidenceBindings(bindingsPath);
   const generatedAt = (
     options.generatedAt ?? new Date().toISOString()
   ).toString();
@@ -784,6 +836,7 @@ export async function finalizeEvidenceRun(options) {
         requirements: options.requirements,
         downloadOutcome: options.artifactDownloadOutcome ?? null,
         acl: options.accessControl,
+        execution: options.execution,
       }),
       qualityGates: {
         asvs,
@@ -874,6 +927,17 @@ export async function validateEvidenceRun(options) {
     manifest.execution,
   );
 
+  const bindingCatalog = options.bindingsPath
+    ? await loadEvidenceBindings(resolve(options.bindingsPath))
+    : null;
+  if (
+    bindingCatalog &&
+    (manifest.caseBindings.version !== bindingCatalog.version ||
+      manifest.caseBindings.sha256 !== bindingCatalog.sha256)
+  ) {
+    fail("evidence run does not use the required binding catalog");
+  }
+
   const artifactIds = new Set();
   const sourcePaths = new Set();
   const artifactCases = new Set();
@@ -911,7 +975,20 @@ export async function validateEvidenceRun(options) {
       fail(`ACL mismatch for ${sourcePath}`);
     }
     const caseIds = uniqueSorted(artifact.caseIds, `${prefix}.caseIds`);
-    uniqueSorted(artifact.bindingRuleIds, `${prefix}.bindingRuleIds`);
+    const bindingRuleIds = uniqueSorted(
+      artifact.bindingRuleIds,
+      `${prefix}.bindingRuleIds`,
+    );
+    if (bindingCatalog) {
+      const expectedBinding = bindingForEvidence(sourcePath, bindingCatalog);
+      if (
+        JSON.stringify(caseIds) !== JSON.stringify(expectedBinding.caseIds) ||
+        JSON.stringify(bindingRuleIds) !==
+          JSON.stringify(expectedBinding.ruleIds)
+      ) {
+        fail(`canonical case binding mismatch for ${sourcePath}`);
+      }
+    }
     for (const caseId of caseIds) artifactCases.add(caseId);
     const objectPath = join(runDirectory, ...expectedStoredPath.split("/"));
     const details = await stat(objectPath);
@@ -944,6 +1021,7 @@ export async function validateEvidenceRun(options) {
       const targetResult = await validateEvidenceRun({
         manifestPath: target,
         requireChainTargets: false,
+        bindingsPath: options.bindingsPath,
       });
       if (targetResult.manifestSha256 !== item.manifestSha256) {
         fail(`replacement target checksum mismatch for ${item.runId}`);
@@ -964,12 +1042,26 @@ export async function validateEvidenceRun(options) {
   ) {
     fail("evidence run is sealed but incomplete");
   }
+  const technicalCompletenessSatisfied =
+    manifest.completeness.requirements.length > 0 &&
+    manifest.completeness.transportSatisfied === true &&
+    manifest.completeness.executionSatisfied === true &&
+    manifest.completeness.requirements.every(
+      (requirement) => requirement.satisfied === true,
+    );
+  if (
+    options.requireTechnicalComplete === true &&
+    !technicalCompletenessSatisfied
+  ) {
+    fail("evidence run is technically incomplete");
+  }
 
   return {
     manifest,
     manifestSha256: digest,
     manifestBytes: bytes.length,
     artifacts: manifest.artifacts.length,
+    technicalCompletenessSatisfied,
   };
 }
 

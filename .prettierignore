@@ -6,4 +6,5 @@ evidencias/
 database/**/*.sql
 pnpm-lock.yaml
 openapi/
+security/semgrep/registry-snapshots/*.json
 tmp/

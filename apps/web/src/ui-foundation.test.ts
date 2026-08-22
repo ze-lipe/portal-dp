@@ -223,6 +223,16 @@ describe("fundação comum de interface", () => {
     expect(state).toEqual({ kind: "reconciling", operationKey });
   });
 
+  it("descarta o rascunho sensível quando a versão do contexto diverge", () => {
+    // CON-08: a resposta do servidor invalida o contexto sem conservar `data`.
+    const state = transitionResourceState<string>(
+      { kind: "draft", data: edited },
+      { type: "CONTEXT_VERSION_DIVERGED" },
+    );
+    expect(state).toEqual({ kind: "context_invalid" });
+    expect("data" in state).toBe(false);
+  });
+
   it("não restaura READY diretamente depois de revogação", () => {
     expect(() =>
       transitionResourceState<string>(

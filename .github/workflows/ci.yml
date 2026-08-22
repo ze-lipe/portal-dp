@@ -8,11 +8,17 @@ on:
 permissions:
   contents: read
 
+# Falha cedo se alguma acao JavaScript ainda nao for compativel com o runtime atual.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   planning-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Validar Documento 22 no Windows PowerShell 5.1
         shell: powershell
         run: .\documentacao\validar-documento-22.ps1
@@ -34,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18.6-bookworm
+        image: postgres:18.6-bookworm@sha256:7d2695c3aa88e792e8b3b233e7e4adb296a20412c6c0ca361e3edaaacfada108
         env:
           POSTGRES_DB: portal_dp_test
           POSTGRES_USER: portal_dp_bootstrap
@@ -61,20 +67,20 @@ jobs:
       WORKER_ACTOR_ID: 10000000-0000-4000-8000-000000000001
       WORKER_COMPANY_IDS: 00000000-0000-4000-8000-00000000000a,00000000-0000-4000-8000-00000000000b,00000000-0000-4000-8000-00000000000c
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2c # v2.0.2
         with:
           version: 11.22.0
-          run_install: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 24.19.0
-          cache: pnpm
+          runtime: node@24.19.0
+          cache: true
+          install: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify:environment
       - run: pnpm verify:asvs
       - run: pnpm test:evidence-repository
-      - run: pnpm verify:asvs:gate
+      - run: pnpm verify:asvs:applicability
       - run: pnpm verify:api
       - run: pnpm format:check
       - name: SCA — vulnerabilidades de dependencias de producao
@@ -86,17 +92,24 @@ jobs:
             | tee evidencias/resultados/pnpm-audit-production.json
       - run: pnpm security:licenses
       - run: pnpm typecheck
-      - run: pnpm test:unit
+      - name: Testes unitarios com relatorio preservado
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm test:unit | tee evidencias/resultados/unit-tests.log
+          printf '\nETP00_UNIT_TEST_COMMAND_STATUS=PASSOU\n' \
+            | tee -a evidencias/resultados/unit-tests.log
       - run: pnpm build
       - run: pnpm db:migrate
       - run: pnpm db:provision:service-logins
       - run: pnpm db:seed:synthetic
       - run: pnpm test:integration:database
+      - run: pnpm verify:gat02-report
       - run: pnpm security:sbom
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: etp00-raw-code-and-postgres-${{ github.sha }}
+          name: etp00-raw-code-and-postgres-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             evidencias/artefatos
             evidencias/resultados
@@ -106,32 +119,52 @@ jobs:
   sast:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Preparar evidencias SAST
         run: mkdir -p evidencias/resultados
       - name: Semgrep SAST — OWASP, Node.js e TypeScript
         shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
+          sha256sum --check security/semgrep/registry-snapshots/SHA256SUMS
+          set +e
           docker run --rm \
             --volume "$GITHUB_WORKSPACE:/src:ro" \
             --workdir /src \
+            --network none \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=128m \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --env HOME=/tmp/semgrep-home \
+            --env SEMGREP_SEND_METRICS=off \
+            --env SEMGREP_SETTINGS_FILE=/tmp/semgrep-settings.yml \
+            --env SEMGREP_VERSION_CACHE_PATH=/tmp/semgrep-version-cache \
             semgrep/semgrep:1.172.0-nonroot@sha256:d1012a3bf2acf47721216fbf7ff12d4c2971cc7f9c7b77cf6c6e9dcf006bd487 \
             semgrep scan \
-              --config p/owasp-top-ten \
-              --config p/nodejs \
-              --config p/typescript \
+              --config security/semgrep/registry-snapshots/owasp-top-ten.json \
+              --config security/semgrep/registry-snapshots/nodejs.json \
+              --config security/semgrep/registry-snapshots/typescript.json \
               --severity ERROR \
               --error \
+              --metrics off \
               --json \
               --exclude node_modules \
               --exclude dist \
               --exclude evidencias \
-              . | tee evidencias/resultados/sast-semgrep.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+              --exclude security/semgrep/registry-snapshots \
+              . > evidencias/resultados/sast-semgrep.raw.json
+          semgrep_status="$?"
+          set -e
+          node scripts/finalize-semgrep-report.mjs
+          rm -f -- evidencias/resultados/sast-semgrep.raw.json
+          exit "$semgrep_status"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: etp00-raw-sast-${{ github.sha }}
+          name: etp00-raw-sast-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: evidencias/resultados/sast-semgrep.json
           if-no-files-found: warn
           retention-days: 90
@@ -141,7 +174,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18.6-bookworm
+        image: postgres:18.6-bookworm@sha256:7d2695c3aa88e792e8b3b233e7e4adb296a20412c6c0ca361e3edaaacfada108
         env:
           POSTGRES_DB: portal_dp_oci_smoke
           POSTGRES_USER: portal_dp_bootstrap
@@ -166,15 +199,15 @@ jobs:
       WORKER_ACTOR_ID: 10000000-0000-4000-8000-000000000001
       WORKER_COMPANY_IDS: 00000000-0000-4000-8000-00000000000a
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2c # v2.0.2
         with:
           version: 11.22.0
-          run_install: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 24.19.0
-          cache: pnpm
+          runtime: node@24.19.0
+          cache: true
+          install: false
       - run: pnpm install --frozen-lockfile
       - name: Preparar PostgreSQL e tarefa sintetica do smoke
         run: |
@@ -184,12 +217,30 @@ jobs:
           pnpm db:seed:synthetic
           node scripts/prepare-evidence-dirs.mjs
           pnpm smoke:oci:prepare
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - id: buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        with:
+          version: v0.36.1
+          driver: docker-container
+          driver-opts: |
+            image=moby/buildkit:v0.32.2@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8
+      - name: Registrar toolchain de build sanitizada
+        env:
+          BUILDX_DRIVER: ${{ steps.buildx.outputs.driver }}
+          BUILDX_NODES_JSON: ${{ steps.buildx.outputs.nodes }}
+        run: node scripts/write-build-toolchain-verification.mjs
       - id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        env:
+          # O pacote de evidências explícito abaixo é a fonte controlada. O
+          # build record implícito poderia reter metadados fora desse pacote.
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
+          DOCKER_BUILD_SUMMARY: "false"
         with:
           context: .
           push: false
+          provenance: mode=max
+          sbom: true
           tags: portal-dp:${{ github.sha }}
           platforms: linux/amd64
           outputs: |
@@ -205,15 +256,15 @@ jobs:
           cleanup() {
             for container in "$api_container" "$worker_container"; do
               docker logs "$container" > "evidencias/resultados/${container}.log" 2>&1 || true
-              docker inspect --format '{{json .State}}' "$container" \
-                > "evidencias/resultados/${container}.state.json" 2>/dev/null || true
-              docker rm --force "$container" >/dev/null 2>&1 || true
+              docker rm --force --volumes "$container" >/dev/null 2>&1 || true
             done
           }
           trap cleanup EXIT
 
-          test "$(docker image inspect --format '{{.Config.User}}' "$image")" = "10001"
+          test "$(docker image inspect --format '{{.Config.User}}' "$image")" = "65532:65532"
           docker run --detach --name "$api_container" --network host \
+            --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --cap-drop ALL --security-opt no-new-privileges \
             --env NODE_ENV=production \
             --env API_HOST=0.0.0.0 \
             --env API_PORT=3000 \
@@ -230,23 +281,28 @@ jobs:
             if [ "$attempt" = 30 ]; then docker logs "$api_container"; exit 1; fi
             sleep 1
           done
-          curl --fail --silent --show-error \
-            http://127.0.0.1:3000/api/v1/sessao \
-            --output /dev/null
-          printf '%s\n' \
-            '{"verified":true,"endpoint":"/api/v1/sessao","statusCode":200}' \
+          session_status="$(curl --silent --show-error \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            http://127.0.0.1:3000/api/v1/sessao)"
+          test "$session_status" = "200"
+          printf \
+            '{"verified":true,"endpoint":"/api/v1/sessao","statusCode":%s}\n' \
+            "$session_status" \
             > evidencias/resultados/oci-api-session-check.json
           curl --fail --silent --show-error http://127.0.0.1:3000/ \
             --output evidencias/resultados/oci-web-index.html
 
           docker run --detach --name "$worker_container" --network host \
+            --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --cap-drop ALL --security-opt no-new-privileges \
             --env NODE_ENV=test \
             --env WORKER_DATABASE_URL \
             --env ETP00_SYNTHETIC_PROOF_ENABLED=true \
             --env WORKER_ID \
             --env WORKER_ACTOR_ID \
             --env WORKER_COMPANY_IDS \
-            "$image" node apps/worker/dist/main.js
+            "$image" apps/worker/dist/main.js
 
           for attempt in {1..30}; do
             if docker logs "$worker_container" 2>&1 | grep --quiet '"event":"outbox_completed"'; then
@@ -257,21 +313,69 @@ jobs:
           done
           company_id="$(node -p "JSON.parse(require('fs').readFileSync('evidencias/resultados/oci-smoke-task.json','utf8')).companyId")"
           object_id="$(node -p "JSON.parse(require('fs').readFileSync('evidencias/resultados/oci-smoke-task.json','utf8')).privateObjectId")"
-          docker exec "$worker_container" test -r \
-            "/var/lib/portal-dp/private-objects/${company_id}/${object_id}.bin"
+          copied_object_directory="$(mktemp -d)"
+          docker cp \
+            "$worker_container:/var/lib/portal-dp/private-objects/${company_id}/${object_id}.bin" \
+            "$copied_object_directory/object.bin"
+          test -s "$copied_object_directory/object.bin"
+          rm -rf -- "$copied_object_directory"
           pnpm smoke:oci:verify | tee evidencias/resultados/oci-worker-verification.json
+
+          # A requisicao atravessa as protecoes de origem e CSRF para provar o
+          # 404 produzido pelo proprio controller desabilitado em producao.
+          session_body="$(mktemp)"
+          session_headers="$(mktemp)"
+          curl --fail --silent --show-error \
+            --dump-header "$session_headers" \
+            --output "$session_body" \
+            http://127.0.0.1:3000/api/v1/sessao
+          csrf_token="$(node -p \
+            "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).data.csrf_token" \
+            "$session_body")"
+          csrf_cookie="$(node -e \
+            "const h=require('fs').readFileSync(process.argv[1],'utf8'); const m=h.match(/^set-cookie:\\s*([^;]+)/im); if(!m) process.exit(1); process.stdout.write(m[1]);" \
+            "$session_headers")"
+          synthetic_route_status="$(curl --silent --show-error \
+            --request PATCH \
+            --header 'Origin: http://localhost:5173' \
+            --header "Cookie: $csrf_cookie" \
+            --header "X-CSRF-Token: $csrf_token" \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            http://127.0.0.1:3000/api/v1/etp00/provas-sinteticas/00000000-0000-4000-8000-000000000000)"
+          rm -f -- "$session_body" "$session_headers"
+          node scripts/write-security-configuration-verification.mjs \
+            --user "$(docker image inspect --format '{{.Config.User}}' "$image")" \
+            --read-only "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$api_container")" \
+            --cap-drop "$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$api_container")" \
+            --security-options "$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$api_container")" \
+            --worker-user "$(docker inspect --format '{{.Config.User}}' "$worker_container")" \
+            --worker-read-only "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$worker_container")" \
+            --worker-cap-drop "$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$worker_container")" \
+            --worker-security-options "$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$worker_container")" \
+            --synthetic-route-status "$synthetic_route_status" \
+            --runtime-base "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.base.name"}}' "$image")" \
+            --entrypoint "$(docker image inspect --format '{{json .Config.Entrypoint}}' "$image")" \
+            --command "$(docker image inspect --format '{{json .Config.Cmd}}' "$image")" \
+            --private-volume-declared "$(docker image inspect --format '{{if index .Config.Volumes "/var/lib/portal-dp/private-objects"}}true{{else}}false{{end}}' "$image")" \
+            --private-volume-mount "$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/var/lib/portal-dp/private-objects"}}{{printf "%s:%t" .Type .RW}}{{end}}{{end}}' "$worker_container")" \
+            --private-root-permissions "$(docker exec "$worker_container" /nodejs/bin/node -e 'const fs=require("fs");const s=fs.statSync(process.argv[1]);process.stdout.write(`${s.uid}:${s.gid}:${(s.mode&0o777).toString(8)}`)' /var/lib/portal-dp/private-objects)" \
+            --private-object-permissions "$(docker exec "$worker_container" /nodejs/bin/node -e 'const fs=require("fs");const s=fs.statSync(process.argv[1]);process.stdout.write(`${s.uid}:${s.gid}:${(s.mode&0o777).toString(8)}`)' "/var/lib/portal-dp/private-objects/${company_id}/${object_id}.bin")"
       - name: Trivy — vulnerabilidades criticas/altas da imagem
+        id: trivy-image
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: portal-dp:${{ github.sha }}
           format: json
           output: evidencias/resultados/trivy-image.json
           exit-code: "1"
-          ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL,HIGH
           hide-progress: true
       - name: Trivy — configuracao e Dockerfile
+        id: trivy-config
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: config
@@ -282,14 +386,26 @@ jobs:
           severity: CRITICAL,HIGH
           hide-progress: true
       - name: Registrar digest do mesmo artefato
+        env:
+          OCI_BUILD_DIGEST: ${{ steps.build.outputs.digest }}
+          OCI_BUILD_METADATA_JSON: ${{ steps.build.outputs.metadata }}
         run: |
           cp /tmp/portal-dp.oci.tar evidencias/artefatos/portal-dp.oci.tar
           sha256sum evidencias/artefatos/portal-dp.oci.tar \
             | tee evidencias/resultados/portal-dp.oci.sha256
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+          export OCI_LOCAL_IMAGE_ID="$(docker image inspect \
+            --format '{{.Id}}' "portal-dp:${GITHUB_SHA}")"
+          node scripts/write-oci-build-evidence.mjs \
+            evidencias/artefatos/portal-dp.oci.tar
+      - name: Reprovar vulnerabilidade ou configuracao critica/alta
+        if: >-
+          ${{ steps.trivy-image.outcome != 'success' ||
+              steps.trivy-config.outcome != 'success' }}
+        run: exit 1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: etp00-raw-oci-${{ github.sha }}
+          name: etp00-raw-oci-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             evidencias/artefatos
             evidencias/resultados
@@ -299,10 +415,33 @@ jobs:
   secret-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
+          persist-credentials: false
+      - id: gitleaks
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+          GITLEAKS_ENABLE_SUMMARY: "false"
+      - name: Registrar resultado redigido da varredura
+        if: ${{ always() }}
+        env:
+          SECRET_SCAN_OUTCOME: ${{ steps.gitleaks.outcome }}
+        run: node scripts/write-secret-scan-result.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: ${{ always() }}
+        with:
+          name: etp00-raw-secret-scan-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidencias/resultados/gitleaks-result.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Reprovar se a varredura de segredos nao foi aprovada
+        if: ${{ always() && steps.gitleaks.outcome != 'success' }}
+        run: exit 1
 
   evidence-repository:
     if: ${{ always() }}
@@ -318,15 +457,17 @@ jobs:
       EVIDENCE_JOB_RESULTS_JSON: >-
         {"planning-windows":"${{ needs.planning-windows.result }}","code-and-postgres":"${{ needs.code-and-postgres.result }}","secret-scan":"${{ needs.secret-scan.result }}","sast":"${{ needs.sast.result }}","oci-image":"${{ needs.oci-image.result }}"}
       EVIDENCE_METADATA_JSON: >-
-        {"event":"${{ github.event_name }}","runNumber":"${{ github.run_number }}"}
+        {"event":"${{ github.event_name }}","runNumber":"${{ github.run_number }}","githubRunId":"${{ github.run_id }}","githubRunAttempt":"${{ github.run_attempt }}","runUrl":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}"}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Reunir evidencias brutas da execucao
         id: raw-evidence-download
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: etp00-raw-*
+          pattern: etp00-raw-*-${{ github.run_id }}-${{ github.run_attempt }}
           path: evidencias/coleta
       - name: Registrar contexto sanitizado da execucao
         if: ${{ always() }}
@@ -339,13 +480,12 @@ jobs:
         run: |
           node scripts/finalize-evidence-run.mjs
           node scripts/validate-evidence-run.mjs \
+            --require-technical-complete \
+            --bindings "$EVIDENCE_BINDINGS" \
             --manifest "evidencias/repositorio/runs/${EVIDENCE_RUN_ID}/manifest.json"
-          node scripts/validate-evidence-run.mjs \
-            --manifest "evidencias/repositorio/runs/${EVIDENCE_RUN_ID}/manifest.json" \
-            --require-complete
       - name: Publicar repositorio selado da execucao
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: etp00-evidence-run-${{ github.run_id }}-${{ github.run_attempt }}
           path: evidencias/repositorio/runs/${{ env.EVIDENCE_RUN_ID }}

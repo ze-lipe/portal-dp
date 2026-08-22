@@ -48,6 +48,7 @@ export type ResourceEvent<T> =
   | { readonly type: "SAFE_REDIRECT_SELECTOR" }
   | { readonly type: "SESSION_EXPIRE" }
   | { readonly type: "COMPANY_CHANGED" }
+  | { readonly type: "CONTEXT_VERSION_DIVERGED" }
   | { readonly type: "FOREIGN_RESOURCE" }
   | { readonly type: "CONNECTION_LOST" }
   | {
@@ -91,6 +92,11 @@ export function transitionResourceState<T>(
   }
   if (event.type === "FOREIGN_RESOURCE" && isAuthenticatedState(current)) {
     return { kind: "permission_denied" };
+  }
+  if (event.type === "CONTEXT_VERSION_DIVERGED" && isAuthorizedState(current)) {
+    // O estado terminal não carrega `data`: qualquer rascunho sensível fica
+    // inacessível assim que o servidor informa divergência de contexto.
+    return { kind: "context_invalid" };
   }
 
   switch (current.kind) {

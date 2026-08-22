@@ -17,28 +17,57 @@ export async function assertLimitedServiceRole(
     rolsuper: boolean;
     rolcreaterole: boolean;
     rolcreatedb: boolean;
+    rolreplication: boolean;
     rolbypassrls: boolean;
     current_can_login: boolean;
     session_super: boolean;
     session_createrole: boolean;
     session_createdb: boolean;
+    session_replication: boolean;
     session_bypassrls: boolean;
     session_can_login: boolean;
+    current_inherit: boolean;
+    session_inherit: boolean;
     can_set_role: boolean;
+    settable_roles: string[];
+    direct_roles: string[];
   }>(`
     SELECT current_user,
            session_user,
            current_role.rolsuper,
            current_role.rolcreaterole,
            current_role.rolcreatedb,
+           current_role.rolreplication,
            current_role.rolbypassrls,
            current_role.rolcanlogin AS current_can_login,
            login_role.rolsuper AS session_super,
            login_role.rolcreaterole AS session_createrole,
            login_role.rolcreatedb AS session_createdb,
+           login_role.rolreplication AS session_replication,
            login_role.rolbypassrls AS session_bypassrls,
            login_role.rolcanlogin AS session_can_login,
-           pg_catalog.pg_has_role(session_user, current_user, 'SET') AS can_set_role
+           current_role.rolinherit AS current_inherit,
+           login_role.rolinherit AS session_inherit,
+           pg_catalog.pg_has_role(session_user, current_user, 'SET') AS can_set_role,
+           ARRAY(
+             SELECT candidate.rolname
+               FROM pg_catalog.pg_roles AS candidate
+              WHERE candidate.rolname <> session_user
+                AND pg_catalog.pg_has_role(
+                      session_user,
+                      candidate.rolname,
+                      'SET'
+                    )
+              ORDER BY candidate.rolname
+           ) AS settable_roles,
+           ARRAY(
+             SELECT granted_role.rolname
+               FROM pg_catalog.pg_auth_members AS membership
+               JOIN pg_catalog.pg_roles AS granted_role
+                 ON granted_role.oid = membership.roleid
+              WHERE membership.member = login_role.oid
+              ORDER BY granted_role.rolname
+           ) AS direct_roles
       FROM pg_catalog.pg_roles AS current_role
       JOIN pg_catalog.pg_roles AS login_role
         ON login_role.rolname = session_user
@@ -52,14 +81,22 @@ export async function assertLimitedServiceRole(
     role.rolsuper ||
     role.rolcreaterole ||
     role.rolcreatedb ||
+    role.rolreplication ||
     role.rolbypassrls ||
     role.current_can_login ||
     role.session_super ||
     role.session_createrole ||
     role.session_createdb ||
+    role.session_replication ||
     role.session_bypassrls ||
     !role.session_can_login ||
-    !role.can_set_role
+    role.current_inherit ||
+    role.session_inherit ||
+    !role.can_set_role ||
+    role.settable_roles.length !== 1 ||
+    role.settable_roles[0] !== expectedRole ||
+    role.direct_roles.length !== 1 ||
+    role.direct_roles[0] !== expectedRole
   ) {
     throw new Error(
       `Database connection is not constrained to ${expectedSessionUser} -> ${expectedRole}`,

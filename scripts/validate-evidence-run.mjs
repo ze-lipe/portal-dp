@@ -12,10 +12,15 @@ const manifestPath =
 if (!manifestPath) {
   throw new Error("Use --manifest <path> or define EVIDENCE_MANIFEST_PATH");
 }
+const bindingsPath = argument("bindings") ?? process.env["EVIDENCE_BINDINGS"];
 
 const result = await validateEvidenceRun({
   manifestPath: resolve(manifestPath),
+  bindingsPath: bindingsPath ? resolve(bindingsPath) : undefined,
   requireComplete: process.argv.includes("--require-complete"),
+  requireTechnicalComplete: process.argv.includes(
+    "--require-technical-complete",
+  ),
 });
 process.stdout.write(
   `${JSON.stringify({
@@ -26,6 +31,7 @@ process.stdout.write(
     cases: result.manifest.cases,
     asvsApproval: result.manifest.qualityGates.asvs.status,
     complete: result.manifest.completeness.complete,
+    technicalComplete: result.technicalCompletenessSatisfied,
     releaseApprovedBySealing: false,
   })}\n`,
 );

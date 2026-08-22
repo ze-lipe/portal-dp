@@ -3,15 +3,18 @@ import { describe, expect, it } from "vitest";
 import { loadConfig } from "./config.js";
 
 describe("loadConfig", () => {
-  it("rejeita a prova sintetica em producao", () => {
-    expect(() =>
-      loadConfig({
-        NODE_ENV: "production",
-        DATABASE_URL: "postgresql://portal:secret@db.example/portal",
-        ETP00_SYNTHETIC_PROOF_ENABLED: "true",
-      }),
-    ).toThrow(/synthetic proof/i);
-  });
+  it.each(["development", "homologation", "production"] as const)(
+    "rejeita a prova sintetica fora de teste: %s",
+    (nodeEnv) => {
+      expect(() =>
+        loadConfig({
+          NODE_ENV: nodeEnv,
+          DATABASE_URL: "postgresql://portal:secret@db.example/portal",
+          ETP00_SYNTHETIC_PROOF_ENABLED: "true",
+        }),
+      ).toThrow(/synthetic proof/i);
+    },
+  );
 
   it("mantem a prova sintetica desligada por padrao", () => {
     expect(loadConfig({ NODE_ENV: "test" }).syntheticProofEnabled).toBe(false);

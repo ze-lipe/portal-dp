@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "QAT-SEC-028-ASVS-5.0.0-STAGE-GATES",
+  "generatedAt": "2026-08-22T20:21:41.535Z",
+  "applicability": {
+    "manifestId": "QAT-SEC-028-ASVS-5.0.0-ETP00",
+    "status": "APROVADO",
+    "subjectSha256": "0481f3e75fc1a86bb64e8c49c77e1b4211a2d879bd709745861df396cdcc4032"
+  },
+  "evidenceRepository": {
+    "bindingCatalogPath": "evidencias/manifests/evidence-bindings-etp00-v1.json",
+    "bindingCatalogSha256": "aeda678fd20c92a3bcd28b4525de303ca900f68931148eb54466ff18841a7813",
+    "runManifestPath": null,
+    "runManifestSha256": null
+  },
+  "scopeCorrection": {
+    "correctionId": "COR-ASVS-ETP00-001",
+    "subject": {
+      "originalDeclaredCases": 13,
+      "executableContributionCases": 10,
+      "deferredIntegralCaseIds": [
+        "QAT-RES-009",
+        "QAT-SEC-023",
+        "QAT-SEC-037",
+        "TST-API-010"
+      ],
+      "reason": "Casos integrais de KMS, MFA/contas administrativas e fluxos financeiros futuros nao podem receber PASSOU com a baseline executavel da ETP-00; a etapa conserva somente contribuicoes delimitadas e deixa o escopo integral bloqueado."
+    },
+    "subjectSha256": "83650d1581140194c0183c928b8dace175aa867e7fc591d905f7046dbe7730c4",
+    "approval": {
+      "status": "PENDENTE_APROVACAO_SEGURANCA",
+      "responsible": null,
+      "approvedAt": null,
+      "subjectSha256": null
+    }
+  },
+  "stageGates": [
+    {
+      "stage": "ETP-00",
+      "mode": "CONTRIBUICAO_PARCIAL",
+      "fullCaseClosureClaimed": false,
+      "deferredIntegralCaseIds": [
+        "QAT-RES-009",
+        "QAT-SEC-023",
+        "QAT-SEC-037",
+        "TST-API-010"
+      ],
+      "status": "EM_EXECUCAO",
+      "note": "Resultados desta etapa comprovam somente contribuicoes delimitadas; nunca declaram PASSOU para o caso integral. KMS, MFA/contas administrativas e fluxos financeiros futuros permanecem bloqueados ate suas provas especificas.",
+      "requiredCaseIds": [
+        "QAT-AUD-007",
+        "QAT-SEC-006",
+        "QAT-SEC-007",
+        "QAT-SEC-021",
+        "QAT-SEC-032",
+        "QAT-SEC-034",
+        "QAT-SEC-035",
+        "QAT-SEC-037",
+        "TST-API-001",
+        "TST-API-020"
+      ],
+      "results": [
+        {
+          "caseId": "QAT-AUD-007",
+          "status": "PLANEJADA",
+          "result": "BLOQUEADO",
+          "requiredBindingRuleIdGroups": [
+            ["BIND-UNIT-TEST-REPORT"],
+            ["BIND-GAT-02-DATABASE"]
+          ],
+          "evidenceArtifactIds": [],
+          "producedAt": null,
+          "responsible": null,
+          "defectOrRisk": "Execucao real da ETP-00 ainda nao registrada."
+        },
+        {
+          "caseId": "QAT-SEC-006",
+          "status": "PLANEJADA",
+          "result": "BLOQUEADO",
+          "requiredBindingRuleIdGroups": [
+            ["BIND-UNIT-TEST-REPORT"],
+            ["BIND-GAT-02-DATABASE"],
+            ["BIND-OCI-API-SESSION"]
+          ],
+          "evidenceArtifactIds": [],
+          "producedAt": null,
+          "responsible": null,
+          "defectOrRisk": "Execucao real da ETP-00 ainda nao registrada."
+        },
+        {
+          "caseId": "QAT-SEC-007",
+          "status": "PLANEJADA",
+          "result": "BLOQUEADO",
+          "requiredBindingRuleIdGroups": [
+            ["BIND-UNIT-TEST-REPORT"],
+            ["BIND-GAT-02-DATABASE"]
+          ],
+          "evidenceArtifactIds": [],
+          "producedAt": null,
+          "responsible": null,
+          "defectOrRisk": "Execucao real da ETP-00 ainda nao registrada."
+        },
+        {
+          "caseId": "QAT-SEC-021",
+          "status": "PLANEJADA",
+          "result": "BLOQUEADO",
+          "requiredBindingRuleIdGroups": [
+            ["BIND-SCA-PNPM"],
+            ["BIND-LICENSES"],
+            ["BIND-SBOM-CYCLONEDX"],
+            ["BIND-BUILD-TOOLCHAIN"],
+            ["BIND-OCI-ARTIFACT"],
+            ["BIND-OCI-DIGEST"],
+            ["BIND-OCI-BUILD-LINK"],
+            ["BIND-TRIVY-IMAGE"]
+          ],
+          "evidenceArtifactIds": [],
+          "producedAt": null,
+          "responsible": null,
+          "defectOrRisk": "Execucao real da ETP-00 ainda nao registrada."
+        },
+        {
+          "caseId": "QAT-SEC-032",
+          "status": "PLANEJADA",
+          "result": "BLOQUEADO",
+          "requiredBindingRuleIdGroups": [["BIND-GAT-02-DATABASE"]],
+          "evidenceArtifactIds": [],
+          "producedAt": null,
+          "responsible": null,
+          "defectOrRisk": "Execucao real da ETP-00 ainda nao registrada."
+        },
+        {
+          "caseId": "QAT-SEC-034",
+          "status": "PLANEJADA",
+          "result": "BLOQUEADO",
+          "requiredBindingRuleIdGroups": [["BIND-SECRET-SCAN"]],
+          "evidenceArtifactIds": [],
+          "producedAt": null,
+          "responsible": null,
+          "defectOrRisk": "Execucao real da ETP-00 ainda nao registrada."
+        },
+        {
+          "caseId": "QAT-SEC-035",
+          "status": "PLANEJADA",
+          "result": "BLOQUEADO",
+          "requiredBindingRuleIdGroups": [["BIND-SAST"]],
+          "evidenceArtifactIds": [],
+          "producedAt": null,
+          "responsible": null,
+          "defectOrRisk": "Execucao real da ETP-00 ainda nao registrada."
+        },
+        {
+          "caseId": "QAT-SEC-037",
+          "status": "PLANEJADA",
+          "result": "BLOQUEADO",
+          "requiredBindingRuleIdGroups": [
+            ["BIND-SECURITY-CONFIG-VERIFICATION"],
+            ["BIND-TRIVY-CONFIG"]
+          ],
+          "evidenceArtifactIds": [],
+          "producedAt": null,
+          "responsible": null,
+          "defectOrRisk": "Execucao real da ETP-00 ainda nao registrada."
+        },
+        {
+          "caseId": "TST-API-001",
+          "status": "PLANEJADA",
+          "result": "BLOQUEADO",
+          "requiredBindingRuleIdGroups": [
+            ["BIND-UNIT-TEST-REPORT"],
+            ["BIND-GAT-02-DATABASE"],
+            ["BIND-OCI-API-READY"]
+          ],
+          "evidenceArtifactIds": [],
+          "producedAt": null,
+          "responsible": null,
+          "defectOrRisk": "Execucao real da ETP-00 ainda nao registrada."
+        },
+        {
+          "caseId": "TST-API-020",
+          "status": "PLANEJADA",
+          "result": "BLOQUEADO",
+          "requiredBindingRuleIdGroups": [
+            ["BIND-UNIT-TEST-REPORT"],
+            ["BIND-GAT-02-DATABASE"]
+          ],
+          "evidenceArtifactIds": [],
+          "producedAt": null,
+          "responsible": null,
+          "defectOrRisk": "Execucao real da ETP-00 ainda nao registrada."
+        }
+      ]
+    }
+  ],
+  "finalClosure": {
+    "stage": "ETP-11",
+    "gate": "GAT-10",
+    "mode": "CONTROLES_APLICAVEIS_INTEGRAIS",
+    "status": "BLOQUEADO",
+    "evidenceIndexManifestId": "QAT-SEC-028-ASVS-5.0.0-ETP00",
+    "expectedApplicableControls": 211,
+    "note": "Somente pode ser concluido quando os 211 controles selecionados tiverem resultado executado, evidencia verificavel e nenhuma pendencia adiada."
+  }
+}

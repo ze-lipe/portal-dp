@@ -563,4 +563,5 @@ Para a verificação, a gramática de referências é fechada:
 ---
 
 **Situação final desta versão:** Documento 20A aprovado integralmente pelo usuário com o Documento 20 em 22/08/2026.  
-**Continuidade vigente:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`; produção permanece não autorizada.
+**Continuidade na data da aprovação:** pacote 23/23A–23D aprovado; preparar o repositório e iniciar a `ETP-00`.  
+**Checkpoint posterior:** baseline em implementação controlada conforme `docs/ETP-00.md`; produção permanece não autorizada.

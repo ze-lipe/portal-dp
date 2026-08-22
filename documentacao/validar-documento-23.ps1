@@ -351,7 +351,7 @@ if ($text.Doc22.Contains('ReleaseReady')) {
 }
 
 Assert-Terms 'Master baseline' $text.Master @(
-    'pacote 22/22A', 'pacote 23/23A', 'Os gates de execu'
+    'pacote 22/22A', 'pacote 23/23A', 'Os gates formais de execu', 'checkpoint posterior registra essa baseline em implementação controlada em `docs/ETP-00.md`'
 )
 
 if (-not $approved -and -not $pendingApproval) {
@@ -632,7 +632,9 @@ $result = [ordered]@{
     ExecutionStatus = 'NOT_RUN_PLANNED'
     CutoverReady = $false
     ProductionGo = $false
-    CodeStarted = $false
+    CodeStartedAtPlanningApproval = $false
+    Etp00ImplementationCheckpoint = 'IN_PROGRESS_CONTROLLED'
+    ProductionDeploymentStarted = $false
     Errors = @($errors)
 }
 

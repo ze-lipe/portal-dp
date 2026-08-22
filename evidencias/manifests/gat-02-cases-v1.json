@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "gate": "GAT-02",
+  "expectedCount": 20,
+  "caseTitles": [
+    "RESET ROLE returns the API to a powerless login, never to bootstrap",
+    "serves the canonical public session contract through the real API",
+    "commits business, audit, idempotency and outbox atomically for company A",
+    "reconciles a lost response and rejects a reused key with another intent",
+    "denies the same technical actor in company B and in an unknown company",
+    "worker materializes one private object and preserves correlation",
+    "revalidates authorization before replay and audits a revoked attempt neutrally",
+    "holds the authorization grant fence until the business transaction ends",
+    "uses limited logical roles and FORCE RLS on every tenant table",
+    "defaults every tenant relation to no rows when context is absent",
+    "keeps BK-077 versions sequential, immutable and deny-by-default",
+    "isolates company A from B and from an unknown company",
+    "does not retain tenant context when a pooled connection is reused",
+    "rolls back the business mutation when mandatory audit fails",
+    "keeps successful audit events append-only",
+    "claims idempotency once and rejects reuse for another intent",
+    "leases, resumes and completes an outbox task exactly once per company",
+    "reschedules failures with bounded backoff and becomes terminal at max attempts",
+    "keeps private object metadata isolated and exposes no public URL",
+    "keeps all three approved synthetic companies addressable only in their own context"
+  ]
+}

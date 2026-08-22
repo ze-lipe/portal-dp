@@ -6,7 +6,7 @@ import {
   isUnsafeRequestAuthorized,
 } from "./csrf.js";
 
-const token = "abcdefghijklmnopqrstuvwxyz0123456789_-TOKEN";
+const token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 describe("base CSRF", () => {
   it("emite cookie host-only, HttpOnly e estrito", () => {

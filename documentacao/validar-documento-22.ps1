@@ -1006,17 +1006,17 @@ foreach ($contract in @(
     @{
         Name = 'Documento 22'
         Text = $doc22Text
-        Terms = @('aprovado integralmente pelo usuário', 'PlanningReady = true', 'NOT_RUN_PLANNED', 'ReleaseCandidateReady = false', '**Código de produção:** ainda não iniciado.')
+        Terms = @('aprovado integralmente pelo usuário', 'PlanningReady = true', 'NOT_RUN_PLANNED', 'ReleaseCandidateReady = false', '**Estado na data da aprovação:** o código de produção ainda não havia sido iniciado.', '**Checkpoint posterior:** a implementação da baseline `ETP-00` está registrada em `docs/ETP-00.md`; nenhuma implantação de produção foi iniciada.')
     },
     @{
         Name = 'Documento 22D'
         Text = $doc22DText
-        Terms = @('aprovados pelo usuário', '**Código de produção:** ainda não iniciado.')
+        Terms = @('aprovados pelo usuário', '**Continuidade na data da aprovação:**', '**Checkpoint posterior:** baseline em implementação controlada conforme `docs/ETP-00.md`')
     },
     @{
         Name = 'Documento Mestre'
         Text = $masterText
-        Terms = @('Os gates de execução permanecem planejados e ainda não foram executados', 'ainda não está liberado para produção')
+        Terms = @('Os gates formais de execução ainda não foram concluídos', 'sistema não está liberado para produção', 'checkpoint posterior registra essa baseline em implementação controlada em `docs/ETP-00.md`')
     }
 )) {
     foreach ($term in $contract.Terms) {

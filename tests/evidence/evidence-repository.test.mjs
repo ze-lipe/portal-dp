@@ -131,6 +131,13 @@ test("seals and verifies a content-addressed evidence run", async () => {
       }),
       /sealed but incomplete/u,
     );
+    await assert.rejects(
+      validateEvidenceRun({
+        manifestPath: sealed.manifestPath,
+        requireTechnicalComplete: true,
+      }),
+      /technically incomplete/u,
+    );
     const manifestBytes = await readFile(sealed.manifestPath);
     assert.equal(sealed.manifestSha256, sha256Bytes(manifestBytes));
   } finally {
@@ -294,7 +301,13 @@ test("does not allow a GitHub run to omit mandatory evidence requirements", asyn
       ref: "refs/heads/main",
       workflow: "owner/repository/.github/workflows/ci.yml@refs/heads/main",
       attempt: "1",
-      outcomes: { sast: "success" },
+      outcomes: {
+        "planning-windows": "success",
+        "code-and-postgres": "success",
+        "secret-scan": "success",
+        sast: "success",
+        "oci-image": "success",
+      },
       initiator: {
         provider: "github",
         subject: "actor-id:1",
@@ -306,6 +319,121 @@ test("does not allow a GitHub run to omit mandatory evidence requirements", asyn
     await assert.rejects(
       finalizeEvidenceRun(githubOptions),
       /missing mandatory evidence requirement EXECUTION_CONTEXT/u,
+    );
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("keeps a GitHub evidence package incomplete when any required job fails", async () => {
+  const paths = await fixture();
+  try {
+    const receiptBytes = Buffer.from('{"custody":"accepted"}\n');
+    await writeFile(join(paths.source, "evidence-run-context.json"), "{}\n");
+    await writeFile(join(paths.source, "sast-semgrep.json"), "{}\n");
+    await writeFile(join(paths.source, "gitleaks-result.json"), "{}\n");
+    await writeFile(join(paths.source, "custody-receipt.json"), receiptBytes);
+
+    const githubOptions = options(paths, "run-github-failed-job");
+    githubOptions.execution = {
+      ...githubOptions.execution,
+      provider: "github-actions",
+      repository: "owner/repository",
+      revision: "a".repeat(40),
+      ref: "refs/heads/main",
+      workflow: "owner/repository/.github/workflows/ci.yml@refs/heads/main",
+      attempt: "1",
+      outcomes: {
+        "planning-windows": "success",
+        "code-and-postgres": "cancelled",
+        "secret-scan": "success",
+        sast: "failure",
+        "oci-image": "skipped",
+      },
+      initiator: {
+        provider: "github",
+        subject: "actor-id:1",
+        displayName: "initiator",
+      },
+    };
+    githubOptions.requirements = [
+      { id: "EXECUTION_CONTEXT", match: "**/evidence-run-context.json" },
+      { id: "SAST_REPORT", match: "**/sast-semgrep.json" },
+      { id: "SECRET_SCAN_REPORT", match: "**/gitleaks-result.json" },
+    ];
+    githubOptions.artifactDownloadOutcome = "success";
+    githubOptions.accessControl.retention.longTermProviderStatus =
+      "CONFIGURADO";
+    githubOptions.accessControl.retention.longTermProvider = "test-worm";
+    githubOptions.accessControl.retention.longTermObjectReference =
+      "test://evidence/run-github-failed-job";
+    githubOptions.accessControl.retention.longTermReceiptSourcePath =
+      "custody-receipt.json";
+    githubOptions.accessControl.retention.longTermReceiptSha256 =
+      sha256Bytes(receiptBytes);
+
+    const sealed = await finalizeEvidenceRun(githubOptions);
+    const checked = await validateEvidenceRun({
+      manifestPath: sealed.manifestPath,
+    });
+    assert.equal(checked.manifest.completeness.retentionSatisfied, true);
+    assert.equal(checked.manifest.completeness.executionSatisfied, false);
+    assert.deepEqual(checked.manifest.completeness.unsuccessfulExecutionJobs, [
+      "code-and-postgres",
+      "sast",
+      "oci-image",
+    ]);
+    assert.equal(checked.manifest.completeness.complete, false);
+    await assert.rejects(
+      validateEvidenceRun({
+        manifestPath: sealed.manifestPath,
+        requireComplete: true,
+      }),
+      /sealed but incomplete/u,
+    );
+    await assert.rejects(
+      validateEvidenceRun({
+        manifestPath: sealed.manifestPath,
+        requireTechnicalComplete: true,
+      }),
+      /technically incomplete/u,
+    );
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+  }
+});
+
+test("rejects a GitHub evidence package with an omitted job outcome", async () => {
+  const paths = await fixture();
+  try {
+    await writeFile(join(paths.source, "report.json"), "{}\n");
+    const githubOptions = options(paths, "run-github-missing-outcome");
+    githubOptions.execution = {
+      ...githubOptions.execution,
+      provider: "github-actions",
+      repository: "owner/repository",
+      revision: "a".repeat(40),
+      ref: "refs/heads/main",
+      workflow: "owner/repository/.github/workflows/ci.yml@refs/heads/main",
+      attempt: "1",
+      outcomes: {
+        "planning-windows": "success",
+        "code-and-postgres": "success",
+        "secret-scan": "success",
+        sast: "success",
+      },
+      initiator: {
+        provider: "github",
+        subject: "actor-id:1",
+        displayName: "initiator",
+      },
+    };
+    githubOptions.requirements = [];
+    githubOptions.artifactDownloadOutcome = "success";
+
+    await assert.rejects(
+      finalizeEvidenceRun(githubOptions),
+      /must record the GitHub job oci-image/u,
     );
   } finally {
     await rm(paths.root, { recursive: true, force: true });

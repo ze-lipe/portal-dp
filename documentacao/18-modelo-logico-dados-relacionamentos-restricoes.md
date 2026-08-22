@@ -2905,7 +2905,7 @@ Os Documentos 19, 20 e o pacote 23 materializam esses itens técnicos e operacio
 
 # 35. Estado da sequência documental
 
-Os Documentos 19/20, 21/21A e os pacotes 22/22A–22D e 23/23A–23D já foram aprovados. A continuidade vigente é preparar o repositório e iniciar a `ETP-00` na ordem do Documento 21, com os gates do Documento 22; nenhum código de produção foi iniciado.
+Os Documentos 19/20, 21/21A e os pacotes 22/22A–22D e 23/23A–23D já foram aprovados. Na data da aprovação, a continuidade era preparar o repositório e iniciar a `ETP-00` na ordem do Documento 21, com os gates do Documento 22. O checkpoint posterior registra a baseline em implementação controlada em `docs/ETP-00.md`; produção permanece não iniciada.
 
 ---
 
@@ -2952,4 +2952,5 @@ Além da aprovação temática, a passagem para implementação física exige:
 O Documento 22 transforma esses limiares em casos e evidências executáveis. Nenhuma exceção silenciosa é aceita.
 
 **Situação atual:** aprovado integralmente pelo usuário; sincronização técnica do pacote 23 também aprovada em 22/08/2026.  
-**Continuidade vigente:** preparar o repositório e iniciar a `ETP-00`. Produção permanece não autorizada e os procedimentos continuam `NOT_RUN_PLANNED`.
+**Continuidade na data da aprovação:** preparar o repositório e iniciar a `ETP-00`.  
+**Checkpoint posterior:** baseline em implementação controlada conforme `docs/ETP-00.md`; produção permanece não autorizada e os procedimentos formais continuam `NOT_RUN_PLANNED`.
