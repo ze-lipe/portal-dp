@@ -520,7 +520,7 @@ async function createApprovedFixture(options = {}) {
   };
   await writeFile(acceptancePath, `${JSON.stringify(template, null, 2)}\n`);
 
-  return { directory, acceptancePath, template, sealed };
+  return { directory, acceptancePath, stageGatesPath, template, sealed };
 }
 
 test("mantem o template pendente sem inventar execucao ou aceite", async () => {
@@ -560,9 +560,20 @@ test("rejeita uma afirmacao de hash inserida no template pendente", async () => 
   }
 });
 
-test("mantem o aceite bloqueado enquanto a correcao de escopo aguarda Seguranca", async () => {
+test("mantem o aceite bloqueado se a aprovacao de Seguranca for removida", async () => {
   const fixture = await createApprovedFixture();
   try {
+    const stageGates = await json(fixture.stageGatesPath);
+    stageGates.scopeCorrection.approval = {
+      status: "PENDENTE_APROVACAO_SEGURANCA",
+      responsible: null,
+      approvedAt: null,
+      subjectSha256: null,
+    };
+    await writeFile(
+      fixture.stageGatesPath,
+      `${JSON.stringify(stageGates, null, 2)}\n`,
+    );
     await assert.rejects(
       execute(process.execPath, [
         validator,

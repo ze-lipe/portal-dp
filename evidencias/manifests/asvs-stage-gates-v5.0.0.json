@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "manifestId": "QAT-SEC-028-ASVS-5.0.0-STAGE-GATES",
-  "generatedAt": "2026-08-22T20:21:41.535Z",
+  "generatedAt": "2026-08-22T22:32:42.089Z",
   "applicability": {
     "manifestId": "QAT-SEC-028-ASVS-5.0.0-ETP00",
     "status": "APROVADO",
@@ -28,10 +28,10 @@
     },
     "subjectSha256": "83650d1581140194c0183c928b8dace175aa867e7fc591d905f7046dbe7730c4",
     "approval": {
-      "status": "PENDENTE_APROVACAO_SEGURANCA",
-      "responsible": null,
-      "approvedAt": null,
-      "subjectSha256": null
+      "status": "APROVADO",
+      "responsible": "Jose Felipe Leite Marques — Desenvolvedor",
+      "approvedAt": "2026-08-22T22:32:42.089Z",
+      "subjectSha256": "83650d1581140194c0183c928b8dace175aa867e7fc591d905f7046dbe7730c4"
     }
   },
   "stageGates": [

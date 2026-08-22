@@ -108,9 +108,9 @@ validada neste computador sem esse destino.
   passaram;
 - cada contribuição exige evidência real, semanticamente válida e vinculada ao
   caso pelo catálogo canônico e pela mesma execução selada;
-- a correção continua `PENDENTE_APROVACAO_SEGURANCA`; a futura aprovação nominal
-  de Jose Felipe Leite Marques, com instante e hash, é condição adicional para
-  o gate da etapa e não está autodeclarada neste documento;
+- a correção foi aprovada nominalmente por
+  `Jose Felipe Leite Marques — Desenvolvedor` em
+  `2026-08-22T22:32:42.089Z`, vinculada ao hash canônico do objeto aprovado;
 - o fechamento integral dos 211 controles selecionados pertence à
   ETP-11/GAT-10 e continua bloqueado.
 

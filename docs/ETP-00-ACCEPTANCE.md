@@ -133,5 +133,7 @@ template nem representam uma execução ou homologação real.
 O inventário original mantém 13 casos integrais. A correção controlada limita a
 ETP-00 a dez contribuições executáveis e deixa `QAT-RES-009`, `QAT-SEC-023`,
 `QAT-SEC-037` e `TST-API-010` integralmente bloqueados até existirem módulos e
-provas específicas. A aprovação nominal dessa correção continua pendente; este
-documento não a presume nem a substitui.
+provas específicas. A aprovação nominal dessa correção foi registrada por
+`Jose Felipe Leite Marques — Desenvolvedor` em `2026-08-22T22:32:42.089Z`,
+vinculada ao hash canônico do objeto aprovado. Ela aprova somente a delimitação
+de escopo e não antecipa resultados técnicos nem a homologação da etapa.

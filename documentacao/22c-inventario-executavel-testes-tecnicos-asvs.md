@@ -373,11 +373,10 @@ A correção controlada `COR-ASVS-ETP00-001` preserva os 13 casos no inventário
 não declara nenhum deles aprovado. Ela restringe o gate executável desta etapa
 a dez contribuições: `QAT-AUD-007`, `QAT-SEC-006/007/021/032/034/035/037` e
 `TST-API-001/020`. O fechamento integral dos quatro casos citados permanece
-`BLOQUEADO` até suas etapas futuras e provas específicas. A correção está
-`PENDENTE_APROVACAO_SEGURANCA`: a aprovação nominal de
-`Jose Felipe Leite Marques — Desenvolvedor`, como responsável de Segurança,
-ainda precisa ser registrada com instante e hash do objeto aprovado. O texto
-não representa essa aprovação.
+`BLOQUEADO` até suas etapas futuras e provas específicas. A correção foi
+aprovada nominalmente por `Jose Felipe Leite Marques — Desenvolvedor`, como
+responsável de Segurança, em `2026-08-22T22:32:42.089Z`, com o hash do objeto
+aprovado. Essa aprovação não declara execução nem resultado técnico.
 
 Com essa correção aprovada, `--require-stage ETP-00` exige primeiro a
 aplicabilidade aprovada e falha se:
