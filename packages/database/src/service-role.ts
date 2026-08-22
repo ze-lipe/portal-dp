@@ -11,6 +11,7 @@ export async function assertLimitedServiceRole(
     throw new Error("Unexpected service role");
   // Valida o papel lógico e também a identidade que abriu a conexão. Isso
   // detecta privilégio oculto por SET ROLE e mantém RESET ROLE sem acesso.
+  // Os casts para text também garantem que o driver decodifique os vetores.
   const result = await pool.query<{
     current_user: string;
     session_user: string;
@@ -50,7 +51,7 @@ export async function assertLimitedServiceRole(
            login_role.rolinherit AS session_inherit,
            pg_catalog.pg_has_role(session_user, current_user, 'SET') AS can_set_role,
            ARRAY(
-             SELECT candidate.rolname
+             SELECT candidate.rolname::text
                FROM pg_catalog.pg_roles AS candidate
               WHERE candidate.rolname <> session_user
                 AND pg_catalog.pg_has_role(
@@ -61,7 +62,7 @@ export async function assertLimitedServiceRole(
               ORDER BY candidate.rolname
            ) AS settable_roles,
            ARRAY(
-             SELECT granted_role.rolname
+             SELECT granted_role.rolname::text
                FROM pg_catalog.pg_auth_members AS membership
                JOIN pg_catalog.pg_roles AS granted_role
                  ON granted_role.oid = membership.roleid
@@ -93,6 +94,8 @@ export async function assertLimitedServiceRole(
     role.current_inherit ||
     role.session_inherit ||
     !role.can_set_role ||
+    !Array.isArray(role.settable_roles) ||
+    !Array.isArray(role.direct_roles) ||
     role.settable_roles.length !== 1 ||
     role.settable_roles[0] !== expectedRole ||
     role.direct_roles.length !== 1 ||

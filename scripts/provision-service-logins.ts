@@ -47,6 +47,8 @@ try {
         )}`,
     );
   }
+  // O catálogo expõe rolname como name. O cast evita name[], que o driver não
+  // decodifica como vetor, sem alterar a verificação de menor privilégio.
   const verification = await client.query<{
     rolname: string;
     settable_roles: string[];
@@ -54,7 +56,7 @@ try {
   }>(`
     SELECT login_role.rolname,
            ARRAY(
-             SELECT candidate.rolname
+             SELECT candidate.rolname::text
                FROM pg_catalog.pg_roles AS candidate
               WHERE candidate.rolname <> login_role.rolname
                 AND pg_catalog.pg_has_role(
@@ -65,7 +67,7 @@ try {
               ORDER BY candidate.rolname
            ) AS settable_roles,
            ARRAY(
-             SELECT granted_role.rolname
+             SELECT granted_role.rolname::text
                FROM pg_catalog.pg_auth_members AS membership
                JOIN pg_catalog.pg_roles AS granted_role
                  ON granted_role.oid = membership.roleid
@@ -96,6 +98,8 @@ try {
       const expectedRole = expectedMemberships.get(role.rolname);
       return (
         !expectedRole ||
+        !Array.isArray(role.settable_roles) ||
+        !Array.isArray(role.direct_roles) ||
         role.settable_roles.length !== 1 ||
         role.settable_roles[0] !== expectedRole ||
         role.direct_roles.length !== 1 ||
