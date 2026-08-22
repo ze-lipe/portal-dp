@@ -15,7 +15,7 @@
     "dev": "corepack pnpm --parallel --filter @portal-dp/api --filter @portal-dp/web --filter @portal-dp/worker dev",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "typecheck": "tsc -p tsconfig.tools.json --noEmit && corepack pnpm --filter=./packages/* -r --if-present build && tsc -p tsconfig.tests.json --noEmit && corepack pnpm -r --if-present typecheck",
+    "typecheck": "corepack pnpm --filter=./packages/* -r --if-present build && tsc -p tsconfig.tools.json --noEmit && tsc -p tsconfig.tests.json --noEmit && corepack pnpm -r --if-present typecheck",
     "test": "corepack pnpm -r --if-present test",
     "test:unit": "corepack pnpm --filter=./packages/* -r --if-present build && corepack pnpm -r --if-present test:unit && node --test tests/evidence/evidence-repository.test.mjs tests/evidence/asvs-approval.test.mjs tests/evidence/gat02-report.test.mjs tests/evidence/etp00-ui-con-coverage.test.mjs tests/evidence/etp00-acceptance.test.mjs tests/evidence/security-configuration-verification.test.mjs tests/evidence/build-toolchain-verification.test.mjs tests/evidence/semgrep-report.test.mjs tests/evidence/oci-build-evidence.test.mjs tests/evidence/secret-scan-result.test.mjs",
     "test:evidence-repository": "node --test tests/evidence/evidence-repository.test.mjs tests/evidence/asvs-approval.test.mjs tests/evidence/gat02-report.test.mjs tests/evidence/etp00-ui-con-coverage.test.mjs tests/evidence/etp00-acceptance.test.mjs tests/evidence/security-configuration-verification.test.mjs tests/evidence/build-toolchain-verification.test.mjs tests/evidence/semgrep-report.test.mjs tests/evidence/oci-build-evidence.test.mjs tests/evidence/secret-scan-result.test.mjs",
