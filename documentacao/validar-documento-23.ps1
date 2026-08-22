@@ -351,7 +351,10 @@ if ($text.Doc22.Contains('ReleaseReady')) {
 }
 
 Assert-Terms 'Master baseline' $text.Master @(
-    'pacote 22/22A', 'pacote 23/23A', 'Os gates formais de execu', 'checkpoint posterior registra essa baseline em implementação controlada em `docs/ETP-00.md`'
+    'pacote 22/22A', 'pacote 23/23A', 'Os gates formais de execu'
+)
+Assert-Terms 'Master normalized baseline' (Convert-ToAsciiLower $text.Master) @(
+    'checkpoint posterior registra essa baseline em implementacao controlada em `docs/etp-00.md`'
 )
 
 if (-not $approved -and -not $pendingApproval) {

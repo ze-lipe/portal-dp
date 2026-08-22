@@ -130,10 +130,37 @@ function artifactContent(name, gatCatalog) {
       },
     },
     "gitleaks-result.json": {
-      schemaVersion: 1,
-      scanner: "gitleaks/gitleaks-action",
+      schemaVersion: 2,
+      scanner: "gitleaks-cli",
+      scannerVersion: "8.24.3",
+      scannerDistributionSha256:
+        "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c",
+      integrityVerified: true,
+      scannerVersionVerified: true,
+      scope: "full-git-history-all-refs-streamed",
+      repositoryNotShallowVerified: true,
+      repositoryCommitCount: 4,
+      repositoryGitStreamBytes: 4096,
+      gitLogOptions: [
+        "-p",
+        "-U0",
+        "--full-history",
+        "--all",
+        "--diff-filter=tuxdb",
+      ],
+      configurationPolicy: "BUILT_IN_DEFAULT_NO_REPOSITORY_OVERRIDES",
+      gitleaksAllowIgnored: true,
+      decodeDepth: 2,
+      timeoutSeconds: 300,
+      reportFormat: "sarif-2.1.0-temporary",
       redacted: true,
+      rawReportRetained: false,
+      installOutcome: "success",
+      scanStepOutcome: "success",
+      exitCode: 0,
+      findingCount: 0,
       outcome: "success",
+      failureCode: null,
       passed: true,
       conclusion: "SEM_ACHADOS_BLOQUEADORES",
     },
@@ -321,6 +348,12 @@ async function createApprovedFixture(options = {}) {
   );
   for (const name of artifactFiles) {
     await writeFile(join(raw, name), artifactContent(name, gatCatalog));
+  }
+  if (options.gitleaksExtraFields) {
+    const gitleaksPath = join(raw, "gitleaks-result.json");
+    const gitleaksReport = await json(gitleaksPath);
+    Object.assign(gitleaksReport, options.gitleaksExtraFields);
+    await writeFile(gitleaksPath, `${JSON.stringify(gitleaksReport)}\n`);
   }
 
   const template = await json(templatePath);
@@ -715,6 +748,25 @@ test("rejeita aceite que omite um item do backlog verificado", async () => {
         fixture.acceptancePath,
       ]),
       /verifiedBacklogItemIds diverge/u,
+    );
+  } finally {
+    await rm(fixture.directory, { recursive: true, force: true });
+  }
+});
+
+test("rejeita conteúdo extra em evidência sanitizada de segredos", async () => {
+  const canary = ["conteudo", "sensivel", "indevido"].join("-");
+  const fixture = await createApprovedFixture({
+    gitleaksExtraFields: { rawReport: canary },
+  });
+  try {
+    await assert.rejects(
+      execute(process.execPath, [
+        validator,
+        "--manifest",
+        fixture.acceptancePath,
+      ]),
+      /clean full-history redacted scan/u,
     );
   } finally {
     await rm(fixture.directory, { recursive: true, force: true });

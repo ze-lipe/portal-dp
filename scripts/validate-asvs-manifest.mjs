@@ -307,14 +307,78 @@ async function validateCriticalEvidenceSemantics(run, runManifestPath) {
         throw new Error("GAT-02 report does not prove the canonical 20 cases");
       }
     } else if (name === "gitleaks-result.json") {
+      const expectedKeys = [
+        "conclusion",
+        "configurationPolicy",
+        "decodeDepth",
+        "exitCode",
+        "failureCode",
+        "findingCount",
+        "gitLogOptions",
+        "gitleaksAllowIgnored",
+        "installOutcome",
+        "integrityVerified",
+        "outcome",
+        "passed",
+        "rawReportRetained",
+        "redacted",
+        "reportFormat",
+        "repositoryCommitCount",
+        "repositoryGitStreamBytes",
+        "repositoryNotShallowVerified",
+        "scanner",
+        "scannerDistributionSha256",
+        "scannerVersion",
+        "scannerVersionVerified",
+        "scanStepOutcome",
+        "schemaVersion",
+        "scope",
+        "timeoutSeconds",
+      ].sort();
       if (
-        report.schemaVersion !== 1 ||
+        JSON.stringify(Object.keys(report).sort()) !==
+          JSON.stringify(expectedKeys) ||
+        report.schemaVersion !== 2 ||
+        report.scanner !== "gitleaks-cli" ||
+        report.scannerVersion !== "8.24.3" ||
+        report.scannerDistributionSha256 !==
+          "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c" ||
+        report.integrityVerified !== true ||
+        report.scannerVersionVerified !== true ||
+        report.scope !== "full-git-history-all-refs-streamed" ||
+        report.repositoryNotShallowVerified !== true ||
+        !Number.isSafeInteger(report.repositoryCommitCount) ||
+        report.repositoryCommitCount < 1 ||
+        !Number.isSafeInteger(report.repositoryGitStreamBytes) ||
+        report.repositoryGitStreamBytes < 1 ||
+        JSON.stringify(report.gitLogOptions) !==
+          JSON.stringify([
+            "-p",
+            "-U0",
+            "--full-history",
+            "--all",
+            "--diff-filter=tuxdb",
+          ]) ||
+        report.configurationPolicy !==
+          "BUILT_IN_DEFAULT_NO_REPOSITORY_OVERRIDES" ||
+        report.gitleaksAllowIgnored !== true ||
+        report.decodeDepth !== 2 ||
+        report.timeoutSeconds !== 300 ||
+        report.reportFormat !== "sarif-2.1.0-temporary" ||
         report.redacted !== true ||
+        report.rawReportRetained !== false ||
+        report.installOutcome !== "success" ||
+        report.scanStepOutcome !== "success" ||
+        report.exitCode !== 0 ||
+        report.findingCount !== 0 ||
         report.outcome !== "success" ||
+        report.failureCode !== null ||
         report.passed !== true ||
         report.conclusion !== "SEM_ACHADOS_BLOQUEADORES"
       ) {
-        throw new Error("Gitleaks report does not prove a clean redacted scan");
+        throw new Error(
+          "Gitleaks report does not prove a clean full-history redacted scan",
+        );
       }
     } else if (name === "sast-semgrep.json") {
       const snapshot = report.portalDpRuleSnapshot;
