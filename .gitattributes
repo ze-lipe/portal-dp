@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.md whitespace=-blank-at-eol
+documentacao/gerar-documento-22a.ps1 whitespace=-blank-at-eol
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary

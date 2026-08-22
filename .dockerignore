@@ -1,0 +1,13 @@
+.git
+.github
+.pnpm-store
+node_modules
+**/node_modules
+**/dist
+coverage
+tmp
+.env
+.env.*
+!.env.example
+evidencias/resultados
+evidencias/artefatos

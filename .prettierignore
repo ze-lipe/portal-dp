@@ -1,0 +1,9 @@
+node_modules/
+.pnpm-store/
+**/dist/
+documentacao/
+evidencias/
+database/**/*.sql
+pnpm-lock.yaml
+openapi/
+tmp/

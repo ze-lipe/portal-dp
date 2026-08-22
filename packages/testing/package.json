@@ -1,0 +1,33 @@
+{
+  "name": "@portal-dp/testing",
+  "version": "0.0.0-etp00",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "prebuild": "corepack pnpm --filter @portal-dp/contracts build && corepack pnpm --filter @portal-dp/domain build",
+    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "pretypecheck": "corepack pnpm --filter @portal-dp/contracts build && corepack pnpm --filter @portal-dp/domain build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "corepack pnpm --filter @portal-dp/contracts build && corepack pnpm --filter @portal-dp/domain build",
+    "test": "vitest run tests",
+    "pretest:unit": "corepack pnpm --filter @portal-dp/contracts build && corepack pnpm --filter @portal-dp/domain build",
+    "test:unit": "vitest run tests"
+  },
+  "dependencies": {
+    "@portal-dp/contracts": "workspace:*",
+    "@portal-dp/domain": "workspace:*"
+  }
+}

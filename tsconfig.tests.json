@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "vitest/globals"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "paths": {
+      "@portal-dp/contracts": ["packages/contracts/src/index.ts"],
+      "@portal-dp/database": ["packages/database/src/index.ts"],
+      "@portal-dp/domain": ["packages/domain/src/index.ts"],
+      "@portal-dp/integrations": ["packages/integrations/src/index.ts"],
+      "@portal-dp/observability": ["packages/observability/src/index.ts"],
+      "@portal-dp/storage": ["packages/storage/src/index.ts"],
+      "@portal-dp/testing": ["packages/testing/src/index.ts"]
+    }
+  },
+  "include": [
+    "apps/**/*.test.ts",
+    "packages/**/*.test.ts",
+    "packages/**/tests/**/*.ts",
+    "tests/**/*.ts"
+  ]
+}

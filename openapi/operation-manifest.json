@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "apiVersion": "v1",
+  "operations": [
+    {
+      "operationId": "API-AUT-001",
+      "method": "GET",
+      "path": "/api/v1/sessao",
+      "owner": "BK-010",
+      "stage": "ETP-00",
+      "authentication": "PUBLICA_NEUTRA"
+    },
+    {
+      "operationId": "API-UTL-003",
+      "method": "GET",
+      "path": "/health/live",
+      "owner": "BK-012",
+      "stage": "ETP-00",
+      "authentication": "SONDA_INTERNA"
+    },
+    {
+      "operationId": "API-UTL-004",
+      "method": "GET",
+      "path": "/health/ready",
+      "owner": "BK-012",
+      "stage": "ETP-00",
+      "authentication": "SONDA_INTERNA"
+    }
+  ]
+}

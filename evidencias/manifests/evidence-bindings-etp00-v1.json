@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "bindingsVersion": "ETP-00/1.0.0",
+  "rules": [
+    {
+      "id": "BIND-EXECUTION-CONTEXT",
+      "match": "**/evidence-run-context.json",
+      "cases": ["QAT-DOC-009"]
+    },
+    {
+      "id": "BIND-GAT-02-DATABASE",
+      "match": "**/gat-02-vitest.json",
+      "cases": ["GAT-02"]
+    },
+    {
+      "id": "BIND-OCI-RUNTIME",
+      "match": "**/oci-*",
+      "cases": ["GAT-01", "GAT-02", "QAT-SEC-037"]
+    },
+    {
+      "id": "BIND-OCI-ARTIFACT",
+      "match": "**/portal-dp*.tar",
+      "cases": ["GAT-01", "QAT-SEC-021", "QAT-SEC-037"]
+    },
+    {
+      "id": "BIND-OCI-DIGEST",
+      "match": "**/portal-dp.oci.sha256",
+      "cases": ["GAT-01", "QAT-SEC-021"]
+    },
+    {
+      "id": "BIND-OCI-CONTAINER-STATE",
+      "match": "**/portal-dp-*-smoke.*",
+      "cases": ["GAT-01", "QAT-SEC-037"]
+    },
+    {
+      "id": "BIND-SBOM-CYCLONEDX",
+      "match": "**/*.cdx.json",
+      "cases": ["QAT-SEC-021", "QAT-SEC-036"]
+    },
+    {
+      "id": "BIND-SCA-PNPM",
+      "match": "**/pnpm-audit-production.json",
+      "cases": ["QAT-SEC-036"]
+    },
+    {
+      "id": "BIND-LICENSES",
+      "match": "**/licenses-production.json",
+      "cases": ["QAT-SEC-036"]
+    },
+    {
+      "id": "BIND-SAST",
+      "match": "**/sast-semgrep.json",
+      "cases": ["QAT-SEC-035"]
+    },
+    {
+      "id": "BIND-TRIVY-IMAGE",
+      "match": "**/trivy-image.json",
+      "cases": ["QAT-SEC-021", "QAT-SEC-037"]
+    },
+    {
+      "id": "BIND-TRIVY-CONFIG",
+      "match": "**/trivy-config.json",
+      "cases": ["QAT-SEC-037"]
+    },
+    {
+      "id": "BIND-REPOSITORY-INTEGRITY",
+      "match": "**/*",
+      "cases": ["QAT-DOC-009"]
+    }
+  ]
+}

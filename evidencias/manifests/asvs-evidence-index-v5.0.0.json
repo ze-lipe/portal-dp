@@ -1,0 +1,1906 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "QAT-SEC-028-ASVS-5.0.0-ETP00",
+  "generatedAt": "2026-08-22T00:00:00.000Z",
+  "records": [
+    {
+      "evidenceId": "EVD-ASVS-V1-1-1",
+      "asvsId": "v5.0.0-1.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-1-2",
+      "asvsId": "v5.0.0-1.1.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-2-1",
+      "asvsId": "v5.0.0-1.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-2-2",
+      "asvsId": "v5.0.0-1.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-2-3",
+      "asvsId": "v5.0.0-1.2.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-2-4",
+      "asvsId": "v5.0.0-1.2.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-2-5",
+      "asvsId": "v5.0.0-1.2.5",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-2-6",
+      "asvsId": "v5.0.0-1.2.6",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-2-7",
+      "asvsId": "v5.0.0-1.2.7",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-2-8",
+      "asvsId": "v5.0.0-1.2.8",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-2-9",
+      "asvsId": "v5.0.0-1.2.9",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-2-10",
+      "asvsId": "v5.0.0-1.2.10",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-3-1",
+      "asvsId": "v5.0.0-1.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-3-2",
+      "asvsId": "v5.0.0-1.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-3-3",
+      "asvsId": "v5.0.0-1.3.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-3-4",
+      "asvsId": "v5.0.0-1.3.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-3-5",
+      "asvsId": "v5.0.0-1.3.5",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-3-6",
+      "asvsId": "v5.0.0-1.3.6",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-3-7",
+      "asvsId": "v5.0.0-1.3.7",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-3-8",
+      "asvsId": "v5.0.0-1.3.8",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-3-9",
+      "asvsId": "v5.0.0-1.3.9",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-3-10",
+      "asvsId": "v5.0.0-1.3.10",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-3-11",
+      "asvsId": "v5.0.0-1.3.11",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-4-1",
+      "asvsId": "v5.0.0-1.4.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-4-2",
+      "asvsId": "v5.0.0-1.4.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-4-3",
+      "asvsId": "v5.0.0-1.4.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-5-1",
+      "asvsId": "v5.0.0-1.5.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V1-5-2",
+      "asvsId": "v5.0.0-1.5.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V2-1-1",
+      "asvsId": "v5.0.0-2.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V2-1-2",
+      "asvsId": "v5.0.0-2.1.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V2-1-3",
+      "asvsId": "v5.0.0-2.1.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V2-2-1",
+      "asvsId": "v5.0.0-2.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V2-2-2",
+      "asvsId": "v5.0.0-2.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V2-2-3",
+      "asvsId": "v5.0.0-2.2.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V2-3-1",
+      "asvsId": "v5.0.0-2.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V2-3-2",
+      "asvsId": "v5.0.0-2.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V2-3-3",
+      "asvsId": "v5.0.0-2.3.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V2-3-4",
+      "asvsId": "v5.0.0-2.3.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V2-4-1",
+      "asvsId": "v5.0.0-2.4.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-2-1",
+      "asvsId": "v5.0.0-3.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-2-2",
+      "asvsId": "v5.0.0-3.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-3-1",
+      "asvsId": "v5.0.0-3.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-3-2",
+      "asvsId": "v5.0.0-3.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-3-3",
+      "asvsId": "v5.0.0-3.3.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-3-4",
+      "asvsId": "v5.0.0-3.3.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-4-1",
+      "asvsId": "v5.0.0-3.4.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-4-2",
+      "asvsId": "v5.0.0-3.4.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-4-3",
+      "asvsId": "v5.0.0-3.4.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-4-4",
+      "asvsId": "v5.0.0-3.4.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-4-5",
+      "asvsId": "v5.0.0-3.4.5",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-4-6",
+      "asvsId": "v5.0.0-3.4.6",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-5-1",
+      "asvsId": "v5.0.0-3.5.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-5-2",
+      "asvsId": "v5.0.0-3.5.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-5-3",
+      "asvsId": "v5.0.0-3.5.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-5-4",
+      "asvsId": "v5.0.0-3.5.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-5-5",
+      "asvsId": "v5.0.0-3.5.5",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-7-1",
+      "asvsId": "v5.0.0-3.7.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V3-7-2",
+      "asvsId": "v5.0.0-3.7.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V4-1-1",
+      "asvsId": "v5.0.0-4.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V4-1-2",
+      "asvsId": "v5.0.0-4.1.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V4-1-3",
+      "asvsId": "v5.0.0-4.1.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V4-2-1",
+      "asvsId": "v5.0.0-4.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V4-3-1",
+      "asvsId": "v5.0.0-4.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V4-3-2",
+      "asvsId": "v5.0.0-4.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V4-4-1",
+      "asvsId": "v5.0.0-4.4.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V4-4-2",
+      "asvsId": "v5.0.0-4.4.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V4-4-3",
+      "asvsId": "v5.0.0-4.4.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V4-4-4",
+      "asvsId": "v5.0.0-4.4.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V5-1-1",
+      "asvsId": "v5.0.0-5.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V5-2-1",
+      "asvsId": "v5.0.0-5.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V5-2-2",
+      "asvsId": "v5.0.0-5.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V5-2-3",
+      "asvsId": "v5.0.0-5.2.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V5-3-1",
+      "asvsId": "v5.0.0-5.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V5-3-2",
+      "asvsId": "v5.0.0-5.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V5-4-1",
+      "asvsId": "v5.0.0-5.4.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V5-4-2",
+      "asvsId": "v5.0.0-5.4.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V5-4-3",
+      "asvsId": "v5.0.0-5.4.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-1-1",
+      "asvsId": "v5.0.0-6.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-1-2",
+      "asvsId": "v5.0.0-6.1.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-1-3",
+      "asvsId": "v5.0.0-6.1.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-1",
+      "asvsId": "v5.0.0-6.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-2",
+      "asvsId": "v5.0.0-6.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-3",
+      "asvsId": "v5.0.0-6.2.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-4",
+      "asvsId": "v5.0.0-6.2.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-5",
+      "asvsId": "v5.0.0-6.2.5",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-6",
+      "asvsId": "v5.0.0-6.2.6",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-7",
+      "asvsId": "v5.0.0-6.2.7",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-8",
+      "asvsId": "v5.0.0-6.2.8",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-9",
+      "asvsId": "v5.0.0-6.2.9",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-10",
+      "asvsId": "v5.0.0-6.2.10",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-11",
+      "asvsId": "v5.0.0-6.2.11",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-2-12",
+      "asvsId": "v5.0.0-6.2.12",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-3-1",
+      "asvsId": "v5.0.0-6.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-3-2",
+      "asvsId": "v5.0.0-6.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-3-3",
+      "asvsId": "v5.0.0-6.3.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-3-4",
+      "asvsId": "v5.0.0-6.3.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-4-1",
+      "asvsId": "v5.0.0-6.4.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-4-2",
+      "asvsId": "v5.0.0-6.4.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-4-3",
+      "asvsId": "v5.0.0-6.4.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-4-4",
+      "asvsId": "v5.0.0-6.4.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-5-1",
+      "asvsId": "v5.0.0-6.5.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-5-2",
+      "asvsId": "v5.0.0-6.5.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-5-3",
+      "asvsId": "v5.0.0-6.5.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-5-4",
+      "asvsId": "v5.0.0-6.5.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-5-5",
+      "asvsId": "v5.0.0-6.5.5",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-6-1",
+      "asvsId": "v5.0.0-6.6.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-6-2",
+      "asvsId": "v5.0.0-6.6.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-6-3",
+      "asvsId": "v5.0.0-6.6.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-8-1",
+      "asvsId": "v5.0.0-6.8.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-8-2",
+      "asvsId": "v5.0.0-6.8.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-8-3",
+      "asvsId": "v5.0.0-6.8.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V6-8-4",
+      "asvsId": "v5.0.0-6.8.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-1-1",
+      "asvsId": "v5.0.0-7.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-1-2",
+      "asvsId": "v5.0.0-7.1.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-1-3",
+      "asvsId": "v5.0.0-7.1.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-2-1",
+      "asvsId": "v5.0.0-7.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-2-2",
+      "asvsId": "v5.0.0-7.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-2-3",
+      "asvsId": "v5.0.0-7.2.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-2-4",
+      "asvsId": "v5.0.0-7.2.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-3-1",
+      "asvsId": "v5.0.0-7.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-3-2",
+      "asvsId": "v5.0.0-7.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-4-1",
+      "asvsId": "v5.0.0-7.4.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-4-2",
+      "asvsId": "v5.0.0-7.4.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-4-3",
+      "asvsId": "v5.0.0-7.4.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-4-4",
+      "asvsId": "v5.0.0-7.4.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-4-5",
+      "asvsId": "v5.0.0-7.4.5",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-5-1",
+      "asvsId": "v5.0.0-7.5.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-5-2",
+      "asvsId": "v5.0.0-7.5.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-6-1",
+      "asvsId": "v5.0.0-7.6.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V7-6-2",
+      "asvsId": "v5.0.0-7.6.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V8-1-1",
+      "asvsId": "v5.0.0-8.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V8-1-2",
+      "asvsId": "v5.0.0-8.1.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V8-2-1",
+      "asvsId": "v5.0.0-8.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V8-2-2",
+      "asvsId": "v5.0.0-8.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V8-2-3",
+      "asvsId": "v5.0.0-8.2.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V8-3-1",
+      "asvsId": "v5.0.0-8.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V8-4-1",
+      "asvsId": "v5.0.0-8.4.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-1-1",
+      "asvsId": "v5.0.0-11.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-1-2",
+      "asvsId": "v5.0.0-11.1.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-2-1",
+      "asvsId": "v5.0.0-11.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-2-2",
+      "asvsId": "v5.0.0-11.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-2-3",
+      "asvsId": "v5.0.0-11.2.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-3-1",
+      "asvsId": "v5.0.0-11.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-3-2",
+      "asvsId": "v5.0.0-11.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-3-3",
+      "asvsId": "v5.0.0-11.3.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-4-1",
+      "asvsId": "v5.0.0-11.4.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-4-2",
+      "asvsId": "v5.0.0-11.4.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-4-3",
+      "asvsId": "v5.0.0-11.4.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-4-4",
+      "asvsId": "v5.0.0-11.4.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-5-1",
+      "asvsId": "v5.0.0-11.5.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V11-6-1",
+      "asvsId": "v5.0.0-11.6.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V12-1-1",
+      "asvsId": "v5.0.0-12.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V12-1-2",
+      "asvsId": "v5.0.0-12.1.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V12-1-3",
+      "asvsId": "v5.0.0-12.1.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V12-2-1",
+      "asvsId": "v5.0.0-12.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V12-2-2",
+      "asvsId": "v5.0.0-12.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V12-3-1",
+      "asvsId": "v5.0.0-12.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V12-3-2",
+      "asvsId": "v5.0.0-12.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V12-3-3",
+      "asvsId": "v5.0.0-12.3.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V12-3-4",
+      "asvsId": "v5.0.0-12.3.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-1-1",
+      "asvsId": "v5.0.0-13.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-2-1",
+      "asvsId": "v5.0.0-13.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-2-2",
+      "asvsId": "v5.0.0-13.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-2-3",
+      "asvsId": "v5.0.0-13.2.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-2-4",
+      "asvsId": "v5.0.0-13.2.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-2-5",
+      "asvsId": "v5.0.0-13.2.5",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-3-1",
+      "asvsId": "v5.0.0-13.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-3-2",
+      "asvsId": "v5.0.0-13.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-4-1",
+      "asvsId": "v5.0.0-13.4.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-4-2",
+      "asvsId": "v5.0.0-13.4.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-4-3",
+      "asvsId": "v5.0.0-13.4.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-4-4",
+      "asvsId": "v5.0.0-13.4.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V13-4-5",
+      "asvsId": "v5.0.0-13.4.5",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V14-1-1",
+      "asvsId": "v5.0.0-14.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V14-1-2",
+      "asvsId": "v5.0.0-14.1.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V14-2-1",
+      "asvsId": "v5.0.0-14.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V14-2-2",
+      "asvsId": "v5.0.0-14.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V14-2-3",
+      "asvsId": "v5.0.0-14.2.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V14-2-4",
+      "asvsId": "v5.0.0-14.2.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V14-3-1",
+      "asvsId": "v5.0.0-14.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V14-3-2",
+      "asvsId": "v5.0.0-14.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V14-3-3",
+      "asvsId": "v5.0.0-14.3.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-1-1",
+      "asvsId": "v5.0.0-15.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-1-2",
+      "asvsId": "v5.0.0-15.1.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-1-3",
+      "asvsId": "v5.0.0-15.1.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-2-1",
+      "asvsId": "v5.0.0-15.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-2-2",
+      "asvsId": "v5.0.0-15.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-2-3",
+      "asvsId": "v5.0.0-15.2.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-3-1",
+      "asvsId": "v5.0.0-15.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-3-2",
+      "asvsId": "v5.0.0-15.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-3-3",
+      "asvsId": "v5.0.0-15.3.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-3-4",
+      "asvsId": "v5.0.0-15.3.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-3-5",
+      "asvsId": "v5.0.0-15.3.5",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-3-6",
+      "asvsId": "v5.0.0-15.3.6",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V15-3-7",
+      "asvsId": "v5.0.0-15.3.7",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-1-1",
+      "asvsId": "v5.0.0-16.1.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-2-1",
+      "asvsId": "v5.0.0-16.2.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-2-2",
+      "asvsId": "v5.0.0-16.2.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-2-3",
+      "asvsId": "v5.0.0-16.2.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-2-4",
+      "asvsId": "v5.0.0-16.2.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-2-5",
+      "asvsId": "v5.0.0-16.2.5",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-3-1",
+      "asvsId": "v5.0.0-16.3.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-3-2",
+      "asvsId": "v5.0.0-16.3.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-3-3",
+      "asvsId": "v5.0.0-16.3.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-3-4",
+      "asvsId": "v5.0.0-16.3.4",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-4-1",
+      "asvsId": "v5.0.0-16.4.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-4-2",
+      "asvsId": "v5.0.0-16.4.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-4-3",
+      "asvsId": "v5.0.0-16.4.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-5-1",
+      "asvsId": "v5.0.0-16.5.1",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-5-2",
+      "asvsId": "v5.0.0-16.5.2",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    },
+    {
+      "evidenceId": "EVD-ASVS-V16-5-3",
+      "asvsId": "v5.0.0-16.5.3",
+      "status": "PLANEJADA",
+      "result": "BLOQUEADO",
+      "artifactSha256": null,
+      "producedAt": null,
+      "responsible": "SEG — titular nominal a definir antes da producao"
+    }
+  ]
+}

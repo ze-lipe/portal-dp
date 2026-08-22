@@ -1,0 +1,52 @@
+{
+  "name": "portal-dp",
+  "version": "0.0.0-etp00",
+  "private": true,
+  "description": "Sistema web multiempresa de gestao de departamento pessoal",
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": "24.19.0",
+    "pnpm": "11.22.0"
+  },
+  "scripts": {
+    "build": "corepack pnpm -r --if-present build",
+    "clean": "corepack pnpm -r --if-present run clean",
+    "dev": "corepack pnpm --parallel --filter @portal-dp/api --filter @portal-dp/web --filter @portal-dp/worker dev",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "typecheck": "tsc -p tsconfig.tools.json --noEmit && corepack pnpm --filter=./packages/* -r --if-present build && tsc -p tsconfig.tests.json --noEmit && corepack pnpm -r --if-present typecheck",
+    "test": "corepack pnpm -r --if-present test",
+    "test:unit": "corepack pnpm --filter=./packages/* -r --if-present build && corepack pnpm -r --if-present test:unit && node --test tests/evidence/evidence-repository.test.mjs tests/evidence/asvs-approval.test.mjs",
+    "test:evidence-repository": "node --test tests/evidence/evidence-repository.test.mjs tests/evidence/asvs-approval.test.mjs",
+    "test:integration": "vitest run --config tests/integration/database/vitest.config.ts",
+    "test:integration:database": "node scripts/prepare-evidence-dirs.mjs && vitest run --config tests/integration/database/vitest.config.ts --reporter=default --reporter=json --outputFile=evidencias/resultados/gat-02-vitest.json",
+    "verify:environment": "node scripts/validate-environment.mjs",
+    "verify:asvs": "node scripts/validate-asvs-manifest.mjs",
+    "verify:asvs:gate": "node scripts/validate-asvs-manifest.mjs --require-approved",
+    "verify:api": "node scripts/validate-api-contract.mjs",
+    "verify:planning": "pwsh -NoProfile -File documentacao/validar-documento-22.ps1 && pwsh -NoProfile -File documentacao/validar-documento-23.ps1",
+    "verify:etp00:local": "corepack pnpm verify:environment && corepack pnpm verify:asvs && corepack pnpm verify:api && corepack pnpm typecheck && corepack pnpm test:unit && corepack pnpm build",
+    "verify:etp00:gate": "corepack pnpm verify:etp00:local && corepack pnpm verify:asvs:gate && corepack pnpm test:integration:database",
+    "security:secrets": "gitleaks detect --no-git --source . --redact",
+    "security:licenses": "node scripts/check-production-licenses.mjs",
+    "security:sbom": "node scripts/prepare-evidence-dirs.mjs && corepack pnpm sbom --sbom-format cyclonedx --sbom-spec-version 1.7 --prod --split --out evidencias/artefatos/%s-%v.cdx.json",
+    "evidence:context": "node scripts/write-evidence-run-context.mjs",
+    "evidence:finalize": "node scripts/finalize-evidence-run.mjs",
+    "evidence:verify": "node scripts/validate-evidence-run.mjs",
+    "smoke:oci:prepare": "tsx scripts/oci-smoke-task.ts prepare",
+    "smoke:oci:verify": "tsx scripts/oci-smoke-task.ts verify",
+    "db:migrate": "tsx scripts/run-migrations.ts",
+    "db:provision:service-logins": "tsx scripts/provision-service-logins.ts",
+    "db:seed:synthetic": "tsx scripts/seed-synthetic.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.9",
+    "@types/pg": "8.16.0",
+    "pg": "catalog:",
+    "prettier": "3.9.6",
+    "tsx": "4.23.12",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

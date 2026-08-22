@@ -1,0 +1,151 @@
+openapi: 3.1.0
+info:
+  title: Portal DP API
+  version: 0.0.0-etp00
+  description: >-
+    Contrato minimo executavel da ETP-00. Nao contem APIs de usuarios, empresas
+    reais, pagamentos ou demais modulos das etapas futuras.
+servers:
+  - url: http://127.0.0.1:3000
+    description: Desenvolvimento local
+paths:
+  /api/v1/sessao:
+    get:
+      operationId: API-AUT-001
+      summary: Consultar a sessao publica minima
+      tags: [Sessao]
+      responses:
+        '200':
+          description: Estado publico da sessao
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/CorrelationId'
+            X-Context-Version:
+              description: Versao opaca do contexto publico
+              schema:
+                type: string
+            Cache-Control:
+              description: Resposta de sessao nunca armazenavel
+              schema:
+                const: no-store
+            Set-Cookie:
+              description: Cookie CSRF opaco, HttpOnly, host-only e SameSite Strict
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicSession'
+        '500':
+          $ref: '#/components/responses/Problem'
+  /health/live:
+    get:
+      operationId: API-UTL-003
+      summary: Verificar se o processo esta vivo
+      tags: [Operacao]
+      responses:
+        '200':
+          description: Processo vivo
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    const: alive
+  /health/ready:
+    get:
+      operationId: API-UTL-004
+      summary: Verificar prontidao das dependencias obrigatorias
+      tags: [Operacao]
+      responses:
+        '200':
+          description: Processo pronto
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    const: ready
+        '503':
+          $ref: '#/components/responses/Problem'
+components:
+  headers:
+    CorrelationId:
+      description: Identificador opaco de correlacao ponta a ponta
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Problem:
+      description: Erro no formato Problem Details
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    PublicSession:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [estado, autenticada, csrf_token, contexto_versao, aviso_em, expira_em, limite_absoluto_em]
+          properties:
+            estado:
+              const: PUBLICA
+            autenticada:
+              const: false
+            csrf_token:
+              type: string
+              minLength: 16
+            contexto_versao:
+              type: string
+              minLength: 8
+            aviso_em:
+              type: 'null'
+            expira_em:
+              type: 'null'
+            limite_absoluto_em:
+              type: 'null'
+        meta:
+          type: object
+          additionalProperties: false
+          required: [correlacao_id, gerado_em]
+          properties:
+            correlacao_id:
+              type: string
+              format: uuid
+            gerado_em:
+              type: string
+              format: date-time
+    ProblemDetails:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, code, detail, instance, correlacao_id]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+        detail:
+          type: string
+        instance:
+          type: string
+        correlacao_id:
+          type: string
+          format: uuid

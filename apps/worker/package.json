@@ -1,0 +1,26 @@
+{
+  "name": "@portal-dp/worker",
+  "version": "0.0.0-etp00",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@portal-dp/database": "workspace:*",
+    "@portal-dp/integrations": "workspace:*",
+    "@portal-dp/observability": "workspace:*",
+    "@portal-dp/storage": "workspace:*",
+    "pg": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/pg": "8.16.0"
+  }
+}

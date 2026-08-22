@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-08-22T00:00:00.000Z",
+  "status": "APPROVED_PLANNING_BASELINE",
+  "artifacts": [
+    {
+      "path": "documentacao/validar-documento-22.ps1",
+      "sha256": "46c5dc283507a5c0d0ba0db5cce6880edbdcfb98e7f7f95b6997a2e2506e6af7"
+    },
+    {
+      "path": "documentacao/validar-documento-23.ps1",
+      "sha256": "6da75fdf96e50deddfc6fd6e254ce8354b0fb869c2e93df372041a2abcfa5f6f"
+    },
+    {
+      "path": "documentacao/gerar-documento-22a.ps1",
+      "sha256": "ba65059fe56041199def976990fc6fc9a4215382a8d10d64cea789d4c31e4b75"
+    },
+    {
+      "path": "documentacao/referencias/OWASP_Application_Security_Verification_Standard_5.0.0_en.flat.json",
+      "sha256": "8201b20eec2908c3380ac600c91c8ba746346fbb808859366abb232027532311"
+    }
+  ],
+  "note": "Hashes da baseline documental aprovada; os validadores de planejamento nao substituem os gates de execucao."
+}

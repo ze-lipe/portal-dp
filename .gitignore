@@ -1,0 +1,28 @@
+# Dependencias e artefatos locais
+node_modules/
+.pnpm-store/
+dist/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# Configuracao local e segredos
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# IDE e sistema operacional
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Saidas temporarias e evidencias geradas localmente
+tmp/
+temp/
+evidencias/resultados/
+evidencias/artefatos/
+evidencias/coleta/
+evidencias/repositorio/

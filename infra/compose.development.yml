@@ -1,0 +1,22 @@
+name: portal-dp-development
+
+services:
+  postgres:
+    image: postgres:18.6-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: portal_dp
+      POSTGRES_USER: portal_dp_bootstrap
+      POSTGRES_PASSWORD: LOCAL_ONLY_CHANGE_ME
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal_dp_bootstrap -d portal_dp"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - portal_dp_pgdata:/var/lib/postgresql
+
+volumes:
+  portal_dp_pgdata:
