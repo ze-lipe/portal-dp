@@ -12,6 +12,7 @@ export async function assertLimitedServiceRole(
   // Valida o papel lógico e também a identidade que abriu a conexão. Isso
   // detecta privilégio oculto por SET ROLE e mantém RESET ROLE sem acesso.
   // Os casts para text também garantem que o driver decodifique os vetores.
+  // O alias evita CURRENT_ROLE, palavra especial do PostgreSQL.
   const result = await pool.query<{
     current_user: string;
     session_user: string;
@@ -35,19 +36,19 @@ export async function assertLimitedServiceRole(
   }>(`
     SELECT current_user,
            session_user,
-           current_role.rolsuper,
-           current_role.rolcreaterole,
-           current_role.rolcreatedb,
-           current_role.rolreplication,
-           current_role.rolbypassrls,
-           current_role.rolcanlogin AS current_can_login,
+           current_role_row.rolsuper,
+           current_role_row.rolcreaterole,
+           current_role_row.rolcreatedb,
+           current_role_row.rolreplication,
+           current_role_row.rolbypassrls,
+           current_role_row.rolcanlogin AS current_can_login,
            login_role.rolsuper AS session_super,
            login_role.rolcreaterole AS session_createrole,
            login_role.rolcreatedb AS session_createdb,
            login_role.rolreplication AS session_replication,
            login_role.rolbypassrls AS session_bypassrls,
            login_role.rolcanlogin AS session_can_login,
-           current_role.rolinherit AS current_inherit,
+           current_role_row.rolinherit AS current_inherit,
            login_role.rolinherit AS session_inherit,
            pg_catalog.pg_has_role(session_user, current_user, 'SET') AS can_set_role,
            ARRAY(
@@ -69,10 +70,10 @@ export async function assertLimitedServiceRole(
               WHERE membership.member = login_role.oid
               ORDER BY granted_role.rolname
            ) AS direct_roles
-      FROM pg_catalog.pg_roles AS current_role
+      FROM pg_catalog.pg_roles AS current_role_row
       JOIN pg_catalog.pg_roles AS login_role
         ON login_role.rolname = session_user
-     WHERE current_role.rolname = current_user
+     WHERE current_role_row.rolname = current_user
   `);
   const role = result.rows[0];
   if (
