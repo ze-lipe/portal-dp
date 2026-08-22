@@ -17,6 +17,7 @@ import {
   etp00EvidenceRequirements,
   finalizeEvidenceRun,
 } from "../../scripts/evidence-repository.mjs";
+import { removeHardenedFixture } from "./remove-hardened-fixture.mjs";
 
 const execute = promisify(execFile);
 const root = resolve(import.meta.dirname, "../..");
@@ -316,6 +317,15 @@ async function createApprovedFixture(options = {}) {
   const directory = await mkdtemp(
     resolve(fixtureRoot, ".acceptance-contract-"),
   );
+  try {
+    return await populateApprovedFixture(directory, options);
+  } catch (error) {
+    await removeHardenedFixture(directory);
+    throw error;
+  }
+}
+
+async function populateApprovedFixture(directory, options) {
   const source = join(directory, "source");
   const raw = join(source, "raw");
   const repository = join(directory, "evidence-repository");
@@ -616,7 +626,7 @@ test("mantem o aceite bloqueado se a aprovacao de Seguranca for removida", async
       /scope correction still requires named security approval/u,
     );
   } finally {
-    await rm(fixture.directory, { recursive: true, force: true });
+    await removeHardenedFixture(fixture.directory);
   }
 });
 
@@ -636,7 +646,7 @@ test("rejeita bypass sintetico, papel de teste e repositorio temporario", async 
       /nao pode usar bypass sintetico, papel de teste ou artefato temporario/u,
     );
   } finally {
-    await rm(fixture.directory, { recursive: true, force: true });
+    await removeHardenedFixture(fixture.directory);
   }
 });
 
@@ -657,7 +667,7 @@ test("rejeita runUrl hospedada fora da origem canonica do GitHub", async () => {
       /origem canonica GitHub diverge/u,
     );
   } finally {
-    await rm(fixture.directory, { recursive: true, force: true });
+    await removeHardenedFixture(fixture.directory);
   }
 });
 
@@ -676,7 +686,7 @@ test("rejeita execucao originada de outro arquivo de workflow", async () => {
       /workflow canonico/u,
     );
   } finally {
-    await rm(fixture.directory, { recursive: true, force: true });
+    await removeHardenedFixture(fixture.directory);
   }
 });
 
@@ -708,7 +718,7 @@ test("rejeita reducao do minimo canonico de onze SBOMs", async () => {
       /missing mandatory evidence requirement SBOM/u,
     );
   } finally {
-    await rm(fixture.directory, { recursive: true, force: true });
+    await removeHardenedFixture(fixture.directory);
   }
 });
 
@@ -729,7 +739,7 @@ test("rejeita hash de artefato que diverge do pacote selado", async () => {
       /hash do artefato diverge/u,
     );
   } finally {
-    await rm(fixture.directory, { recursive: true, force: true });
+    await removeHardenedFixture(fixture.directory);
   }
 });
 
@@ -750,7 +760,7 @@ test("rejeita aceite que omite um item do backlog verificado", async () => {
       /verifiedBacklogItemIds diverge/u,
     );
   } finally {
-    await rm(fixture.directory, { recursive: true, force: true });
+    await removeHardenedFixture(fixture.directory);
   }
 });
 
@@ -769,6 +779,6 @@ test("rejeita conteúdo extra em evidência sanitizada de segredos", async () =>
       /clean full-history redacted scan/u,
     );
   } finally {
-    await rm(fixture.directory, { recursive: true, force: true });
+    await removeHardenedFixture(fixture.directory);
   }
 });

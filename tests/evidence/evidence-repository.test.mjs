@@ -4,11 +4,11 @@ import {
   mkdtemp,
   mkdir,
   readFile,
-  rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 
 import {
@@ -16,6 +16,7 @@ import {
   sha256Bytes,
   validateEvidenceRun,
 } from "../../scripts/evidence-repository.mjs";
+import { removeHardenedFixture } from "./remove-hardened-fixture.mjs";
 
 const FIXED_TIME = "2026-08-22T12:00:00.000Z";
 const HASH_A = "a".repeat(64);
@@ -140,9 +141,29 @@ test("seals and verifies a content-addressed evidence run", async () => {
     );
     const manifestBytes = await readFile(sealed.manifestPath);
     assert.equal(sealed.manifestSha256, sha256Bytes(manifestBytes));
+    if (process.platform !== "win32") {
+      const artifactPath = join(
+        dirname(sealed.manifestPath),
+        ...checked.manifest.artifacts[0].storedPath.split("/"),
+      );
+      assert.equal((await stat(sealed.manifestPath)).mode & 0o777, 0o440);
+      assert.equal((await stat(artifactPath)).mode & 0o777, 0o440);
+      assert.equal(
+        (await stat(dirname(sealed.manifestPath))).mode & 0o777,
+        0o550,
+      );
+      assert.equal((await stat(dirname(artifactPath))).mode & 0o777, 0o550);
+    }
   } finally {
-    await rm(paths.root, { recursive: true, force: true });
+    await removeHardenedFixture(paths.root);
   }
+});
+
+test("refuses to clean a path outside the known fixture roots", async () => {
+  await assert.rejects(
+    removeHardenedFixture(join(tmpdir(), "not-an-evidence-fixture")),
+    /não é fixture temporária/u,
+  );
 });
 
 test("passes the completeness gate only with artifacts and a custody receipt", async () => {
@@ -174,7 +195,7 @@ test("passes the completeness gate only with artifacts and a custody receipt", a
     assert.equal(checked.manifest.completeness.complete, true);
     assert.equal(checked.manifest.completeness.retentionSatisfied, true);
   } finally {
-    await rm(paths.root, { recursive: true, force: true });
+    await removeHardenedFixture(paths.root);
   }
 });
 
@@ -188,7 +209,7 @@ test("refuses to overwrite an immutable run", async () => {
       /already exists and cannot be overwritten/u,
     );
   } finally {
-    await rm(paths.root, { recursive: true, force: true });
+    await removeHardenedFixture(paths.root);
   }
 });
 
@@ -211,7 +232,7 @@ test("detects object tampering", async () => {
       /object (?:size|checksum) mismatch/u,
     );
   } finally {
-    await rm(paths.root, { recursive: true, force: true });
+    await removeHardenedFixture(paths.root);
   }
 });
 
@@ -232,7 +253,7 @@ test("preserves a verifiable replacement chain", async () => {
     ]);
     assert.equal(checked.manifest.replacement.reason, "Correção do relatório");
   } finally {
-    await rm(paths.root, { recursive: true, force: true });
+    await removeHardenedFixture(paths.root);
   }
 });
 
@@ -258,7 +279,7 @@ test("rejects a replacement chain whose prior object was altered", async () => {
       /object (?:size|checksum) mismatch/u,
     );
   } finally {
-    await rm(paths.root, { recursive: true, force: true });
+    await removeHardenedFixture(paths.root);
   }
 });
 
@@ -271,7 +292,7 @@ test("fails closed when an artifact has no case binding", async () => {
       /no case binding/u,
     );
   } finally {
-    await rm(paths.root, { recursive: true, force: true });
+    await removeHardenedFixture(paths.root);
   }
 });
 
@@ -284,7 +305,7 @@ test("fails closed when a JSON report is malformed", async () => {
       /invalid JSON evidence/u,
     );
   } finally {
-    await rm(paths.root, { recursive: true, force: true });
+    await removeHardenedFixture(paths.root);
   }
 });
 
@@ -321,7 +342,7 @@ test("does not allow a GitHub run to omit mandatory evidence requirements", asyn
       /missing mandatory evidence requirement EXECUTION_CONTEXT/u,
     );
   } finally {
-    await rm(paths.root, { recursive: true, force: true });
+    await removeHardenedFixture(paths.root);
   }
 });
 
@@ -399,7 +420,7 @@ test("keeps a GitHub evidence package incomplete when any required job fails", a
       /technically incomplete/u,
     );
   } finally {
-    await rm(paths.root, { recursive: true, force: true });
+    await removeHardenedFixture(paths.root);
   }
 });
 
@@ -436,6 +457,6 @@ test("rejects a GitHub evidence package with an omitted job outcome", async () =
       /must record the GitHub job oci-image/u,
     );
   } finally {
-    await rm(paths.root, { recursive: true, force: true });
+    await removeHardenedFixture(paths.root);
   }
 });
