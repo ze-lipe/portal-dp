@@ -13,7 +13,9 @@ import {
 import { createReadStream } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
-export const EVIDENCE_CONTRACT_VERSION = "portal-dp/evidence-repository@1.1.0";
+import { validateCriticalEvidenceSemantics } from "./critical-evidence-semantics.mjs";
+
+export const EVIDENCE_CONTRACT_VERSION = "portal-dp/evidence-repository@1.2.0";
 export const EVIDENCE_SCHEMA_VERSION = 2;
 
 const ETP00_REQUIRED_GITHUB_JOBS = [
@@ -31,6 +33,10 @@ export function etp00EvidenceRequirements(provider, outcomes) {
       id: "EXECUTION_CONTEXT",
       match: "**/evidence-run-context.json",
     },
+    {
+      id: "COLLECTED_EVIDENCE_SECRET_SCAN",
+      match: "**/content-secret-scan-collected-evidence.json",
+    },
   ];
   if (["success", "failure"].includes(outcomes["code-and-postgres"])) {
     requirements.push(
@@ -39,10 +45,20 @@ export function etp00EvidenceRequirements(provider, outcomes) {
       { id: "SCA_REPORT", match: "**/pnpm-audit-production.json" },
       { id: "LICENSE_REPORT", match: "**/licenses-production.json" },
       { id: "SBOM", match: "**/*.cdx.json", minimumCount: 11 },
+      {
+        id: "GENERATED_CONTENT_SECRET_SCAN",
+        match: "**/content-secret-scan-generated.json",
+      },
     );
   }
   if (["success", "failure"].includes(outcomes["sast"])) {
-    requirements.push({ id: "SAST_REPORT", match: "**/sast-semgrep.json" });
+    requirements.push(
+      { id: "SAST_REPORT", match: "**/sast-semgrep.json" },
+      {
+        id: "SAST_EVIDENCE_SECRET_SCAN",
+        match: "**/content-secret-scan-sast-evidence.json",
+      },
+    );
   }
   if (["success", "failure"].includes(outcomes["secret-scan"])) {
     requirements.push({
@@ -68,11 +84,20 @@ export function etp00EvidenceRequirements(provider, outcomes) {
         id: "OCI_WORKER_VERIFICATION",
         match: "**/oci-worker-verification.json",
       },
+      { id: "TRIVY_SCAN_SUMMARY", match: "**/trivy-scan-result.json" },
       { id: "TRIVY_IMAGE_REPORT", match: "**/trivy-image.json" },
       { id: "TRIVY_CONFIG_REPORT", match: "**/trivy-config.json" },
       {
         id: "SECURITY_CONFIGURATION_VERIFICATION",
         match: "**/security-configuration-verification.json",
+      },
+      {
+        id: "OCI_EVIDENCE_SECRET_SCAN",
+        match: "**/content-secret-scan-oci-evidence.json",
+      },
+      {
+        id: "OCI_IMAGE_SECRET_SCAN",
+        match: "**/image-secret-scan-result.json",
       },
     );
   }
@@ -175,6 +200,51 @@ async function collectFiles(root) {
   }
   await walk(root);
   return files;
+}
+
+async function validatePhysicalRunLayout(runDirectory, storedPaths) {
+  const allowedFiles = new Set(["manifest.json", "manifest.sha256"]);
+  const allowedDirectories = new Set();
+  for (const storedPath of storedPaths) {
+    allowedFiles.add(storedPath);
+    const segments = storedPath.split("/");
+    for (let length = 1; length < segments.length; length += 1) {
+      allowedDirectories.add(segments.slice(0, length).join("/"));
+    }
+  }
+
+  const observedFiles = new Set();
+  async function walk(directory) {
+    const entries = await readdir(directory, { withFileTypes: true });
+    entries.sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      const path = join(directory, entry.name);
+      const logicalPath = normalizedRelativePath(runDirectory, path);
+      if (entry.isSymbolicLink()) {
+        fail(`symbolic links are forbidden in sealed evidence: ${logicalPath}`);
+      }
+      if (entry.isDirectory()) {
+        if (!allowedDirectories.has(logicalPath)) {
+          fail(`undeclared directory in sealed evidence: ${logicalPath}`);
+        }
+        await walk(path);
+      } else if (entry.isFile()) {
+        if (!allowedFiles.has(logicalPath)) {
+          fail(`undeclared file in sealed evidence: ${logicalPath}`);
+        }
+        observedFiles.add(logicalPath);
+      } else {
+        fail(`unsupported sealed evidence type: ${logicalPath}`);
+      }
+    }
+  }
+  await walk(runDirectory);
+  if (
+    observedFiles.size !== allowedFiles.size ||
+    [...allowedFiles].some((path) => !observedFiles.has(path))
+  ) {
+    fail("sealed evidence physical file set is incomplete");
+  }
 }
 
 function globExpression(pattern) {
@@ -364,6 +434,15 @@ function validateAcl(acl) {
   }
   requireText(acl.classification, "accessControl.classification");
   requireText(acl.enforcement, "accessControl.enforcement");
+  const allowedAccessModels = new Set([
+    "INTERNO_RESTRITO\0FILESYSTEM_WORKSPACE_ACL",
+    "INTERNO_RESTRITO\0GITHUB_PRIVATE_REPOSITORY_AND_ACTIONS_ARTIFACT_ACL",
+    "INTERNO_RESTRITO\0TEST_ACL",
+    "PUBLICO_SANITIZADO\0GITHUB_PUBLIC_REPOSITORY_ACTIONS_ARTIFACT_VISIBILITY",
+  ]);
+  if (!allowedAccessModels.has(`${acl.classification}\0${acl.enforcement}`)) {
+    fail("accessControl classification does not match its real enforcement");
+  }
   uniqueSorted(acl.readers, "accessControl.readers");
   uniqueSorted(acl.writers, "accessControl.writers");
   requireText(acl.retention.policy, "accessControl.retention.policy");
@@ -883,6 +962,16 @@ export async function finalizeEvidenceRun(options) {
 }
 
 export async function validateEvidenceRun(options) {
+  if (
+    options.preservationStructureOnly === true &&
+    (options.requireComplete === true ||
+      options.requireTechnicalComplete === true ||
+      options.requireCriticalSemantics === true)
+  ) {
+    fail(
+      "preservation-only validation cannot be combined with completeness or critical semantic gates",
+    );
+  }
   const manifestPath = resolve(options.manifestPath);
   const runDirectory = dirname(manifestPath);
   const repositoryRuns = dirname(runDirectory);
@@ -941,6 +1030,7 @@ export async function validateEvidenceRun(options) {
   const artifactIds = new Set();
   const sourcePaths = new Set();
   const artifactCases = new Set();
+  const storedPaths = new Set();
   for (const [index, artifact] of manifest.artifacts.entries()) {
     const prefix = `artifacts[${index}]`;
     const artifactId = requireText(artifact.artifactId, `${prefix}.artifactId`);
@@ -967,6 +1057,7 @@ export async function validateEvidenceRun(options) {
     if (artifact.storedPath !== expectedStoredPath) {
       fail(`content-addressed path mismatch for ${sourcePath}`);
     }
+    storedPaths.add(expectedStoredPath);
     if (!Number.isSafeInteger(artifact.bytes) || artifact.bytes < 0) {
       fail(`invalid byte length for ${sourcePath}`);
     }
@@ -1006,6 +1097,7 @@ export async function validateEvidenceRun(options) {
       }
     }
   }
+  await validatePhysicalRunLayout(runDirectory, storedPaths);
   const declaredCases = uniqueSorted(manifest.cases, "cases");
   if (
     JSON.stringify(declaredCases) !== JSON.stringify([...artifactCases].sort())
@@ -1022,6 +1114,7 @@ export async function validateEvidenceRun(options) {
         manifestPath: target,
         requireChainTargets: false,
         bindingsPath: options.bindingsPath,
+        preservationStructureOnly: options.preservationStructureOnly,
       });
       if (targetResult.manifestSha256 !== item.manifestSha256) {
         fail(`replacement target checksum mismatch for ${item.runId}`);
@@ -1049,6 +1142,20 @@ export async function validateEvidenceRun(options) {
     manifest.completeness.requirements.every(
       (requirement) => requirement.satisfied === true,
     );
+  let criticalSemanticsValidated = false;
+  if (options.preservationStructureOnly !== true) {
+    // Todo artefato crítico presente é verificado, inclusive quando a execução
+    // falhou e o pacote ficou incompleto. Ausência/cardinalidade continuam sendo
+    // responsabilidade do gate de completude, sem esconder conteúdo inválido.
+    await validateCriticalEvidenceSemantics(manifest, manifestPath, {
+      requireCompleteSet:
+        technicalCompletenessSatisfied &&
+        manifest.completeness.requirements.some((requirement) =>
+          ["OCI_ARTIFACT", "SBOM"].includes(requirement.id),
+        ),
+    });
+    criticalSemanticsValidated = true;
+  }
   if (
     options.requireTechnicalComplete === true &&
     !technicalCompletenessSatisfied
@@ -1062,6 +1169,7 @@ export async function validateEvidenceRun(options) {
     manifestBytes: bytes.length,
     artifacts: manifest.artifacts.length,
     technicalCompletenessSatisfied,
+    criticalSemanticsValidated,
   };
 }
 

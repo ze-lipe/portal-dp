@@ -30,8 +30,16 @@ function argumentsFor(output, overrides = {}) {
     "runtime-base": expectedBase,
     entrypoint: '["/nodejs/bin/node"]',
     command: '["apps/api/dist/main.js"]',
-    "private-volume-declared": "true",
-    "private-volume-mount": "volume:true",
+    "image-declared-volumes": "null",
+    "api-mounts": "[]",
+    "worker-mounts": JSON.stringify([
+      {
+        Type: "volume",
+        Destination: "/var/lib/portal-dp/private-objects",
+        RW: true,
+      },
+      { Type: "tmpfs", Destination: "/tmp", RW: true },
+    ]),
     "private-root-permissions": "65532:65532:700",
     "private-object-permissions": "65532:65532:600",
     output,
@@ -56,9 +64,20 @@ test("emite somente o relatorio sanitizado quando todos os fatos passam", async 
     assert.equal(report.assertions.processIdentity.user, "65532:65532");
     assert.equal(report.assertions.syntheticApiRoute.enabled, false);
     assert.equal(report.assertions.workerRuntimeSecurity.readOnly, true);
-    assert.equal(
-      report.assertions.privateObjectStorage.runtimeMount,
-      "volume:true",
+    assert.deepEqual(
+      report.assertions.immutableRootFilesystem.writablePersistentMounts,
+      [],
+    );
+    assert.deepEqual(report.assertions.workerRuntimeSecurity.persistentMounts, [
+      {
+        destination: "/var/lib/portal-dp/private-objects",
+        type: "volume",
+        writable: true,
+      },
+    ]);
+    assert.deepEqual(
+      report.assertions.privateObjectStorage.imageDeclaredVolumes,
+      [],
     );
     assert.equal(JSON.stringify(report).includes("DATABASE_URL"), false);
   } finally {
@@ -85,11 +104,94 @@ test("falha fechado e nao cria relatorio quando um fato diverge", async () => {
   }
 });
 
+test("rejeita volume implicito na imagem ou montagem persistente na API", async () => {
+  await mkdir(resolve(root, "tmp"), { recursive: true });
+  const directory = await mkdtemp(resolve(root, "tmp/security-config-"));
+  try {
+    for (const [name, value, message] of [
+      [
+        "image-declared-volumes",
+        '{"/var/lib/portal-dp/private-objects":{}}',
+        /volume declarado pela imagem/u,
+      ],
+      [
+        "api-mounts",
+        '[{"Type":"bind","Destination":"/dados","RW":true}]',
+        /montagens persistentes esperadas/u,
+      ],
+    ]) {
+      const output = resolve(directory, `${name}.json`);
+      await assert.rejects(
+        execute(
+          process.execPath,
+          [writer, ...argumentsFor(output, { [name]: value })],
+          { cwd: root },
+        ),
+        message,
+      );
+      await assert.rejects(stat(output), /ENOENT/u);
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejeita worker sem volume privado ou com persistencia adicional", async () => {
+  await mkdir(resolve(root, "tmp"), { recursive: true });
+  const directory = await mkdtemp(resolve(root, "tmp/security-config-"));
+  try {
+    for (const [suffix, mounts] of [
+      ["sem-volume", []],
+      [
+        "volume-extra",
+        [
+          {
+            Type: "volume",
+            Destination: "/var/lib/portal-dp/private-objects",
+            RW: true,
+          },
+          { Type: "bind", Destination: "/dados-extras", RW: true },
+        ],
+      ],
+      [
+        "volume-somente-leitura-extra",
+        [
+          {
+            Type: "volume",
+            Destination: "/var/lib/portal-dp/private-objects",
+            RW: true,
+          },
+          { Type: "bind", Destination: "/dados-extras", RW: false },
+        ],
+      ],
+    ]) {
+      const output = resolve(directory, `${suffix}.json`);
+      await assert.rejects(
+        execute(process.execPath, [
+          writer,
+          ...argumentsFor(output, {
+            "worker-mounts": JSON.stringify(mounts),
+          }),
+        ]),
+        /montagens persistentes esperadas/u,
+      );
+      await assert.rejects(stat(output), /ENOENT/u);
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("o Dockerfile nao declara volume gravavel implicito", async () => {
+  const dockerfile = await readFile(resolve(root, "Dockerfile"), "utf8");
+  assert.doesNotMatch(dockerfile, /^\s*VOLUME(?:\s|\[)/imu);
+});
+
 test("rejeita JSON bem formado que nao comprova as assercoes de seguranca", () => {
   assert.throws(
     () =>
       validateSecurityConfigurationReport({
-        schemaVersion: 1,
+        schemaVersion: 2,
         reportType: "OCI_SECURITY_CONFIGURATION_VERIFICATION",
         status: "PASSOU",
         assertions: {},

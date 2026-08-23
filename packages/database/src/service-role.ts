@@ -10,7 +10,7 @@ export async function assertLimitedServiceRole(
   if (!allowedServiceRoles.has(expectedRole))
     throw new Error("Unexpected service role");
   // Valida o papel lógico e também a identidade que abriu a conexão. Isso
-  // detecta privilégio oculto por SET ROLE e mantém RESET ROLE sem acesso.
+  // detecta privilégio oculto por SET ROLE e impede retorno ao bootstrap.
   // Os casts para text também garantem que o driver decodifique os vetores.
   // O alias evita CURRENT_ROLE, palavra especial do PostgreSQL.
   const result = await pool.query<{

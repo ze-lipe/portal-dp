@@ -4,6 +4,9 @@ import test from "node:test";
 
 import { createOciBuildEvidence } from "../../scripts/write-oci-build-evidence.mjs";
 
+const expectedBuilderId =
+  "https://github.com/ze-lipe/portal-dp/actions/runs/123456789";
+
 function digest(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
@@ -35,17 +38,20 @@ function fixture() {
   });
   const buildDigest = digest(manifestBytes);
   const provenanceBytes = jsonBytes({
-    _type: "https://in-toto.io/Statement/v0.1",
+    _type: "https://in-toto.io/Statement/v1",
     subject: [{ digest: { sha256: buildDigest.slice(7) } }],
-    predicateType: "https://slsa.dev/provenance/v0.2",
+    predicateType: "https://slsa.dev/provenance/v1",
     predicate: {
-      buildType: "https://mobyproject.org/buildkit@v1",
-      builder: { id: "https://github.com/docker/build-push-action" },
+      buildDefinition: {
+        buildType:
+          "https://github.com/moby/buildkit/blob/master/docs/attestations/slsa-definitions.md",
+      },
+      runDetails: { builder: { id: expectedBuilderId } },
     },
   });
   const provenanceDigest = digest(provenanceBytes);
   const sbomBytes = jsonBytes({
-    _type: "https://in-toto.io/Statement/v0.1",
+    _type: "https://in-toto.io/Statement/v1",
     subject: [{ digest: { sha256: buildDigest.slice(7) } }],
     predicateType: "https://spdx.dev/Document",
     predicate: {
@@ -67,10 +73,12 @@ function fixture() {
   const attestationBytes = jsonBytes({
     schemaVersion: 2,
     mediaType: "application/vnd.oci.image.manifest.v1+json",
+    artifactType: "application/vnd.docker.attestation.manifest.v1+json",
     config: {
       mediaType: "application/vnd.oci.empty.v1+json",
       digest: attestationConfigDigest,
       size: attestationConfigBytes.length,
+      data: "e30=",
     },
     layers: [
       {
@@ -78,7 +86,7 @@ function fixture() {
         digest: provenanceDigest,
         size: provenanceBytes.length,
         annotations: {
-          "in-toto.io/predicate-type": "https://slsa.dev/provenance/v0.2",
+          "in-toto.io/predicate-type": "https://slsa.dev/provenance/v1",
         },
       },
       {
@@ -90,6 +98,11 @@ function fixture() {
         },
       },
     ],
+    subject: {
+      mediaType: "application/vnd.oci.image.manifest.v1+json",
+      digest: buildDigest,
+      size: manifestBytes.length,
+    },
   });
   const attestationDigest = digest(attestationBytes);
   const indexBytes = jsonBytes({
@@ -127,12 +140,71 @@ function fixture() {
   return { buildDigest, localImageId, indexBytes, blobs };
 }
 
-async function buildReport(overrides = {}) {
-  const value = fixture();
+function mutateAttestation(value, targetPredicateType, mutate) {
+  const index = JSON.parse(value.indexBytes.toString("utf8"));
+  const attestationDescriptor = index.manifests.find(
+    (descriptor) => descriptor.platform?.os === "unknown",
+  );
+  const oldAttestationDigest = attestationDescriptor.digest;
+  const attestation = JSON.parse(
+    value.blobs.get(oldAttestationDigest).toString("utf8"),
+  );
+  const layer = attestation.layers.find(
+    (candidate) =>
+      candidate.annotations?.["in-toto.io/predicate-type"] ===
+      targetPredicateType,
+  );
+  assert.ok(layer, `fixture sem predicate ${targetPredicateType}`);
+  const oldStatementDigest = layer.digest;
+  const statement = JSON.parse(
+    value.blobs.get(oldStatementDigest).toString("utf8"),
+  );
+
+  mutate({ layer, statement });
+
+  const newStatementBytes = jsonBytes(statement);
+  const newStatementDigest = digest(newStatementBytes);
+  value.blobs.delete(oldStatementDigest);
+  value.blobs.set(newStatementDigest, newStatementBytes);
+  layer.digest = newStatementDigest;
+  layer.size = newStatementBytes.length;
+
+  const newAttestationBytes = jsonBytes(attestation);
+  const newAttestationDigest = digest(newAttestationBytes);
+  value.blobs.delete(oldAttestationDigest);
+  value.blobs.set(newAttestationDigest, newAttestationBytes);
+  attestationDescriptor.digest = newAttestationDigest;
+  attestationDescriptor.size = newAttestationBytes.length;
+  value.indexBytes = jsonBytes(index);
+}
+
+function mutateAttestationManifest(value, mutate) {
+  const index = JSON.parse(value.indexBytes.toString("utf8"));
+  const attestationDescriptor = index.manifests.find(
+    (descriptor) => descriptor.platform?.os === "unknown",
+  );
+  const oldAttestationDigest = attestationDescriptor.digest;
+  const attestation = JSON.parse(
+    value.blobs.get(oldAttestationDigest).toString("utf8"),
+  );
+
+  mutate(attestation);
+
+  const newAttestationBytes = jsonBytes(attestation);
+  const newAttestationDigest = digest(newAttestationBytes);
+  value.blobs.delete(oldAttestationDigest);
+  value.blobs.set(newAttestationDigest, newAttestationBytes);
+  attestationDescriptor.digest = newAttestationDigest;
+  attestationDescriptor.size = newAttestationBytes.length;
+  value.indexBytes = jsonBytes(index);
+}
+
+async function buildFixtureReport(value, overrides = {}) {
   return createOciBuildEvidence({
     buildDigest: value.buildDigest,
     localImageId: value.localImageId,
     ociArchiveSha256: "c".repeat(64),
+    expectedBuilderId,
     metadata: {
       "containerimage.digest": value.buildDigest,
       "containerimage.config.digest": value.localImageId,
@@ -142,6 +214,10 @@ async function buildReport(overrides = {}) {
     readBlob: async (blobDigest) => value.blobs.get(blobDigest),
     ...overrides,
   });
+}
+
+async function buildReport(overrides = {}) {
+  return buildFixtureReport(fixture(), overrides);
 }
 
 test("vincula Buildx, imagem local e grafo OCI sem persistir metadados brutos", async () => {
@@ -177,6 +253,23 @@ test("rejeita metadata do Buildx independente do digest declarado", async () => 
   );
 });
 
+test("rejeita chamada sem expectedBuilderId explicito", async () => {
+  await assert.rejects(
+    buildReport({ expectedBuilderId: undefined }),
+    /expectedBuilderId deve ser uma string nao vazia/u,
+  );
+});
+
+test("rejeita builder id diferente do valor esperado", async () => {
+  await assert.rejects(
+    buildReport({
+      expectedBuilderId:
+        "https://github.com/ze-lipe/portal-dp/actions/runs/987654321",
+    }),
+    /builder id do provenance diverge do expectedBuilderId/u,
+  );
+});
+
 test("rejeita imagem local que nao e config alcancavel do build", async () => {
   const value = fixture();
   const unrelatedBytes = jsonBytes({ unrelated: true });
@@ -187,6 +280,7 @@ test("rejeita imagem local que nao e config alcancavel do build", async () => {
       buildDigest: value.buildDigest,
       localImageId: unrelatedDigest,
       ociArchiveSha256: "e".repeat(64),
+      expectedBuilderId,
       metadata: {
         "containerimage.digest": value.buildDigest,
         "containerimage.config.digest": unrelatedDigest,
@@ -223,6 +317,30 @@ test("rejeita arquivo OCI sem attestations de provenance e SBOM", async () => {
   );
 });
 
+test("rejeita manifesto de attestation sem o artifactType canonico", async () => {
+  const value = fixture();
+  mutateAttestationManifest(value, (manifest) => {
+    manifest.artifactType = "application/vnd.exemplo.attestation+json";
+  });
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /nao possui artifactType application\/vnd\.docker\.attestation/u,
+  );
+});
+
+test("rejeita manifesto de attestation cujo subject aponta para outra imagem", async () => {
+  const value = fixture();
+  mutateAttestationManifest(value, (manifest) => {
+    manifest.subject.digest = `sha256:${"f".repeat(64)}`;
+  });
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /subject\.digest do manifesto de attestation diverge/u,
+  );
+});
+
 test("rejeita arquivo OCI sem o payload de uma camada da imagem", async () => {
   const value = fixture();
   const manifest = JSON.parse(
@@ -234,6 +352,7 @@ test("rejeita arquivo OCI sem o payload de uma camada da imagem", async () => {
       buildDigest: value.buildDigest,
       localImageId: value.localImageId,
       ociArchiveSha256: "b".repeat(64),
+      expectedBuilderId,
       metadata: {
         "containerimage.digest": value.buildDigest,
         "containerimage.config.digest": value.localImageId,
@@ -245,52 +364,102 @@ test("rejeita arquivo OCI sem o payload de uma camada da imagem", async () => {
   );
 });
 
-test("rejeita attestation com predicate vazio mesmo quando os digests conferem", async () => {
+test("rejeita provenance v1 sem os campos obrigatorios mesmo com digests validos", async () => {
   const value = fixture();
-  const index = JSON.parse(value.indexBytes.toString("utf8"));
-  const attestationDescriptor = index.manifests.find(
-    (descriptor) => descriptor.platform?.os === "unknown",
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ statement }) => {
+      statement.predicate = {};
+    },
   );
-  const oldAttestationDigest = attestationDescriptor.digest;
-  const attestation = JSON.parse(
-    value.blobs.get(oldAttestationDigest).toString("utf8"),
-  );
-  const provenanceLayer = attestation.layers.find((layer) =>
-    String(layer.annotations?.["in-toto.io/predicate-type"]).includes(
-      "provenance",
-    ),
-  );
-  const invalidStatementBytes = jsonBytes({
-    _type: "https://in-toto.io/Statement/v0.1",
-    subject: [{ digest: { sha256: value.buildDigest.slice(7) } }],
-    predicateType: "https://slsa.dev/provenance/v0.2",
-    predicate: {},
-  });
-  const invalidStatementDigest = digest(invalidStatementBytes);
-  value.blobs.delete(provenanceLayer.digest);
-  value.blobs.set(invalidStatementDigest, invalidStatementBytes);
-  provenanceLayer.digest = invalidStatementDigest;
-  provenanceLayer.size = invalidStatementBytes.length;
-  const newAttestationBytes = jsonBytes(attestation);
-  const newAttestationDigest = digest(newAttestationBytes);
-  value.blobs.delete(oldAttestationDigest);
-  value.blobs.set(newAttestationDigest, newAttestationBytes);
-  attestationDescriptor.digest = newAttestationDigest;
-  attestationDescriptor.size = newAttestationBytes.length;
 
   await assert.rejects(
-    createOciBuildEvidence({
-      buildDigest: value.buildDigest,
-      localImageId: value.localImageId,
-      ociArchiveSha256: "9".repeat(64),
-      metadata: {
-        "containerimage.digest": value.buildDigest,
-        "containerimage.config.digest": value.localImageId,
-      },
-      indexBytes: jsonBytes(index),
-      readBlob: async (blobDigest) => value.blobs.get(blobDigest),
-    }),
-    /declaracao in-toto/u,
+    buildFixtureReport(value),
+    /buildDefinition\.buildType/u,
+  );
+});
+
+test("rejeita envelope antigo mesmo quando o predicateType e SLSA v1", async () => {
+  const value = fixture();
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ statement }) => {
+      statement._type = "https://in-toto.io/Statement/v0.1";
+    },
+  );
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /provenance SLSA v1 usa envelope in-toto diferente/u,
+  );
+});
+
+test("rejeita provenance SLSA v0.2 mesmo com estrutura antiga completa", async () => {
+  const value = fixture();
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ layer, statement }) => {
+      layer.annotations["in-toto.io/predicate-type"] =
+        "https://slsa.dev/provenance/v0.2";
+      statement._type = "https://in-toto.io/Statement/v0.1";
+      statement.predicateType = "https://slsa.dev/provenance/v0.2";
+      statement.predicate = {
+        buildType: "https://mobyproject.org/buildkit@v1",
+        builder: { id: expectedBuilderId },
+      };
+    },
+  );
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /versao de provenance OCI nao suportada/u,
+  );
+});
+
+test("rejeita campos v0.2 dentro de uma declaracao rotulada como SLSA v1", async () => {
+  const value = fixture();
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ statement }) => {
+      statement.predicate = {
+        buildType: "https://mobyproject.org/buildkit@v1",
+        builder: { id: expectedBuilderId },
+      };
+    },
+  );
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /buildDefinition\.buildType/u,
+  );
+});
+
+test("rejeita provenance v1 sem runDetails.builder.id", async () => {
+  const value = fixture();
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ statement }) => {
+      delete statement.predicate.runDetails;
+    },
+  );
+
+  await assert.rejects(buildFixtureReport(value), /runDetails\.builder\.id/u);
+});
+
+test("rejeita SBOM SPDX em envelope in-toto inesperado", async () => {
+  const value = fixture();
+  mutateAttestation(value, "https://spdx.dev/Document", ({ statement }) => {
+    statement._type = "https://in-toto.io/Statement/v0.1";
+  });
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /SBOM SPDX usa envelope in-toto diferente/u,
   );
 });
 
@@ -302,6 +471,7 @@ test("rejeita buildDigest que nao pertence ao grafo OCI", async () => {
       buildDigest: outsideDigest,
       localImageId: value.localImageId,
       ociArchiveSha256: "a".repeat(64),
+      expectedBuilderId,
       metadata: {
         "containerimage.digest": outsideDigest,
         "containerimage.config.digest": value.localImageId,

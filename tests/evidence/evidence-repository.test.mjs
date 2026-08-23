@@ -21,6 +21,19 @@ import { removeHardenedFixture } from "./remove-hardened-fixture.mjs";
 const FIXED_TIME = "2026-08-22T12:00:00.000Z";
 const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
+const EXPECTED_SBOM_COMPONENTS = [
+  "api",
+  "contracts",
+  "database",
+  "domain",
+  "integrations",
+  "observability",
+  "portal-dp",
+  "storage",
+  "testing",
+  "web",
+  "worker",
+];
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "portal-dp-evidence-"));
@@ -109,6 +122,71 @@ function options(paths, runId, supersedesManifestPath) {
   };
 }
 
+async function populateCriticalSemanticFixture(
+  paths,
+  { auditHigh = false } = {},
+) {
+  await writeFile(
+    paths.bindings,
+    `${JSON.stringify({
+      schemaVersion: 1,
+      bindingsVersion: "TEST-SEMANTICS/1.0.0",
+      rules: [
+        { id: "TEST-JSON", match: "**/*.json", cases: ["QAT-SEC-021"] },
+        { id: "TEST-OCI", match: "**/*.tar", cases: ["QAT-SEC-021"] },
+        {
+          id: "TEST-DIGEST",
+          match: "**/*.sha256",
+          cases: ["QAT-SEC-021"],
+        },
+      ],
+    })}\n`,
+  );
+
+  const archiveBytes = Buffer.from("imagem OCI sintética para contrato\n");
+  const archiveSha256 = sha256Bytes(archiveBytes);
+  await writeFile(join(paths.source, "portal-dp.oci.tar"), archiveBytes);
+  await writeFile(
+    join(paths.source, "portal-dp.oci.sha256"),
+    `${archiveSha256}  portal-dp.oci.tar\n`,
+  );
+
+  for (const [index, component] of EXPECTED_SBOM_COMPONENTS.entries()) {
+    await writeFile(
+      join(paths.source, `${component}-0.0.0.cdx.json`),
+      `${JSON.stringify({
+        bomFormat: "CycloneDX",
+        specVersion: "1.7",
+        metadata: { component: { name: component, version: "0.0.0" } },
+        components:
+          index === 0 ? [{ name: "dependencia-teste", version: "1.0.0" }] : [],
+      })}\n`,
+    );
+  }
+
+  if (auditHigh) {
+    await writeFile(
+      join(paths.source, "pnpm-audit-production.json"),
+      `${JSON.stringify({
+        metadata: { vulnerabilities: { high: 1, critical: 0 } },
+      })}\n`,
+    );
+  }
+}
+
+function criticalSemanticOptions(paths, runId, artifactCount) {
+  const result = options(paths, runId);
+  result.requirements = [
+    {
+      id: "CRITICAL_SEMANTIC_FIXTURE",
+      match: "**/*",
+      minimumCount: artifactCount,
+    },
+  ];
+  result.artifactDownloadOutcome = "success";
+  return result;
+}
+
 test("seals and verifies a content-addressed evidence run", async () => {
   const paths = await fixture();
   try {
@@ -159,6 +237,35 @@ test("seals and verifies a content-addressed evidence run", async () => {
   }
 });
 
+test("rejeita classificacao restrita sobre transporte publico", async () => {
+  const paths = await fixture();
+  try {
+    await writeFile(join(paths.source, "report.json"), '{"passed":true}\n');
+    const mismatched = options(paths, "run-acl-incompativel");
+    mismatched.accessControl.enforcement =
+      "GITHUB_PUBLIC_REPOSITORY_ACTIONS_ARTIFACT_VISIBILITY";
+    await assert.rejects(
+      finalizeEvidenceRun(mismatched),
+      /classification does not match its real enforcement/u,
+    );
+
+    const publicSanitized = options(paths, "run-acl-publico");
+    publicSanitized.accessControl.classification = "PUBLICO_SANITIZADO";
+    publicSanitized.accessControl.enforcement =
+      "GITHUB_PUBLIC_REPOSITORY_ACTIONS_ARTIFACT_VISIBILITY";
+    const sealed = await finalizeEvidenceRun(publicSanitized);
+    const checked = await validateEvidenceRun({
+      manifestPath: sealed.manifestPath,
+    });
+    assert.equal(
+      checked.manifest.accessControl.classification,
+      "PUBLICO_SANITIZADO",
+    );
+  } finally {
+    await removeHardenedFixture(paths.root);
+  }
+});
+
 test("refuses to clean a path outside the known fixture roots", async () => {
   await assert.rejects(
     removeHardenedFixture(join(tmpdir(), "not-an-evidence-fixture")),
@@ -199,6 +306,67 @@ test("passes the completeness gate only with artifacts and a custody receipt", a
   }
 });
 
+test("validates critical report semantics with technical completeness", async () => {
+  const paths = await fixture();
+  try {
+    await populateCriticalSemanticFixture(paths);
+    const sealed = await finalizeEvidenceRun(
+      criticalSemanticOptions(paths, "run-critical-semantics", 13),
+    );
+    const checked = await validateEvidenceRun({
+      manifestPath: sealed.manifestPath,
+      requireTechnicalComplete: true,
+    });
+    assert.equal(checked.technicalCompletenessSatisfied, true);
+    assert.equal(checked.criticalSemanticsValidated, true);
+  } finally {
+    await removeHardenedFixture(paths.root);
+  }
+});
+
+test("rejects a technically complete run with invalid critical semantics", async () => {
+  const paths = await fixture();
+  try {
+    await populateCriticalSemanticFixture(paths, { auditHigh: true });
+    const sealed = await finalizeEvidenceRun(
+      criticalSemanticOptions(paths, "run-critical-semantics-invalid", 14),
+    );
+    await assert.rejects(
+      validateEvidenceRun({
+        manifestPath: sealed.manifestPath,
+        requireTechnicalComplete: true,
+      }),
+      /pnpm audit report contains high\/critical findings/u,
+    );
+  } finally {
+    await removeHardenedFixture(paths.root);
+  }
+});
+
+test("preserves an incomplete failed run after validating structure and hashes", async () => {
+  const paths = await fixture();
+  try {
+    await populateCriticalSemanticFixture(paths, { auditHigh: true });
+    const preservedOptions = criticalSemanticOptions(
+      paths,
+      "run-failed-preserved",
+      14,
+    );
+    preservedOptions.execution.outcomes.tests = "failure";
+    preservedOptions.artifactDownloadOutcome = "failure";
+    const sealed = await finalizeEvidenceRun(preservedOptions);
+    const checked = await validateEvidenceRun({
+      manifestPath: sealed.manifestPath,
+      preservationStructureOnly: true,
+    });
+    assert.equal(checked.technicalCompletenessSatisfied, false);
+    assert.equal(checked.criticalSemanticsValidated, false);
+    assert.equal(checked.artifacts, 14);
+  } finally {
+    await removeHardenedFixture(paths.root);
+  }
+});
+
 test("refuses to overwrite an immutable run", async () => {
   const paths = await fixture();
   try {
@@ -230,6 +398,23 @@ test("detects object tampering", async () => {
     await assert.rejects(
       validateEvidenceRun({ manifestPath: sealed.manifestPath }),
       /object (?:size|checksum) mismatch/u,
+    );
+  } finally {
+    await removeHardenedFixture(paths.root);
+  }
+});
+
+test("rejeita arquivo extra fora do manifesto selado", async () => {
+  const paths = await fixture();
+  try {
+    await writeFile(join(paths.source, "report.json"), '{"passed":true}\n');
+    const sealed = await finalizeEvidenceRun(options(paths, "run-extra-file"));
+    const runDirectory = dirname(sealed.manifestPath);
+    if (process.platform !== "win32") await chmod(runDirectory, 0o750);
+    await writeFile(join(runDirectory, "nao-declarado.txt"), "injetado\n");
+    await assert.rejects(
+      validateEvidenceRun({ manifestPath: sealed.manifestPath }),
+      /undeclared file in sealed evidence/u,
     );
   } finally {
     await removeHardenedFixture(paths.root);
@@ -351,8 +536,6 @@ test("keeps a GitHub evidence package incomplete when any required job fails", a
   try {
     const receiptBytes = Buffer.from('{"custody":"accepted"}\n');
     await writeFile(join(paths.source, "evidence-run-context.json"), "{}\n");
-    await writeFile(join(paths.source, "sast-semgrep.json"), "{}\n");
-    await writeFile(join(paths.source, "gitleaks-result.json"), "{}\n");
     await writeFile(join(paths.source, "custody-receipt.json"), receiptBytes);
 
     const githubOptions = options(paths, "run-github-failed-job");
@@ -379,7 +562,15 @@ test("keeps a GitHub evidence package incomplete when any required job fails", a
     };
     githubOptions.requirements = [
       { id: "EXECUTION_CONTEXT", match: "**/evidence-run-context.json" },
+      {
+        id: "COLLECTED_EVIDENCE_SECRET_SCAN",
+        match: "**/content-secret-scan-collected-evidence.json",
+      },
       { id: "SAST_REPORT", match: "**/sast-semgrep.json" },
+      {
+        id: "SAST_EVIDENCE_SECRET_SCAN",
+        match: "**/content-secret-scan-sast-evidence.json",
+      },
       { id: "SECRET_SCAN_REPORT", match: "**/gitleaks-result.json" },
     ];
     githubOptions.artifactDownloadOutcome = "success";
@@ -418,6 +609,70 @@ test("keeps a GitHub evidence package incomplete when any required job fails", a
         requireTechnicalComplete: true,
       }),
       /technically incomplete/u,
+    );
+  } finally {
+    await removeHardenedFixture(paths.root);
+  }
+});
+
+test("rejects invalid present evidence before reporting technical incompleteness", async () => {
+  const paths = await fixture();
+  try {
+    await writeFile(join(paths.source, "evidence-run-context.json"), "{}\n");
+    await writeFile(
+      join(paths.source, "pnpm-audit-production.json"),
+      `${JSON.stringify({
+        metadata: { vulnerabilities: { high: 1, critical: 0 } },
+      })}\n`,
+    );
+
+    const githubOptions = options(paths, "run-github-invalid-partial");
+    githubOptions.execution = {
+      ...githubOptions.execution,
+      provider: "github-actions",
+      repository: "owner/repository",
+      revision: "a".repeat(40),
+      ref: "refs/heads/main",
+      workflow: "owner/repository/.github/workflows/ci.yml@refs/heads/main",
+      attempt: "1",
+      outcomes: {
+        "planning-windows": "success",
+        "code-and-postgres": "failure",
+        "secret-scan": "skipped",
+        sast: "skipped",
+        "oci-image": "skipped",
+      },
+      initiator: {
+        provider: "github",
+        subject: "actor-id:1",
+        displayName: "initiator",
+      },
+    };
+    githubOptions.requirements = [
+      { id: "EXECUTION_CONTEXT", match: "**/evidence-run-context.json" },
+      {
+        id: "COLLECTED_EVIDENCE_SECRET_SCAN",
+        match: "**/content-secret-scan-collected-evidence.json",
+      },
+      { id: "UNIT_TEST_REPORT", match: "**/unit-tests.log" },
+      { id: "DATABASE_TEST_REPORT", match: "**/gat-02-vitest.json" },
+      { id: "SCA_REPORT", match: "**/pnpm-audit-production.json" },
+      { id: "LICENSE_REPORT", match: "**/licenses-production.json" },
+      { id: "SBOM", match: "**/*.cdx.json", minimumCount: 11 },
+      {
+        id: "GENERATED_CONTENT_SECRET_SCAN",
+        match: "**/content-secret-scan-generated.json",
+      },
+    ];
+    githubOptions.artifactDownloadOutcome = "success";
+
+    const sealed = await finalizeEvidenceRun(githubOptions);
+    await assert.rejects(
+      validateEvidenceRun({
+        manifestPath: sealed.manifestPath,
+        requireTechnicalComplete: true,
+      }),
+      /pnpm audit report contains high\/critical findings/u,
     );
   } finally {
     await removeHardenedFixture(paths.root);

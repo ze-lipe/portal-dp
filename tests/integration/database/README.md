@@ -21,7 +21,10 @@ A prova vertical também exige `DATABASE_URL` autenticando como
 `portal_dp_app_login` e `WORKER_DATABASE_URL` autenticando como
 `portal_dp_worker_login`. Esses logins não possuem privilégios próprios e podem
 assumir somente o papel lógico limitado correspondente; o bootstrap nunca é
-reutilizado pela API ou pelo worker.
+reutilizado pela API ou pelo worker. As URLs ativam o papel lógico como opção de
+inicialização da conexão. Por isso, conforme a semântica do PostgreSQL,
+`RESET ROLE` preserva esse papel limitado; `SET ROLE NONE` volta ao login sem
+privilégios.
 
 O teste também constrói e abre a tela pública em Chrome, Edge ou Chromium real,
 chama `/api/v1/sessao` pela própria página e confere o resultado renderizado. O

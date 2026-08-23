@@ -3,14 +3,24 @@ const expectedBase =
 
 export function validateSecurityConfigurationReport(report) {
   const assertions = report?.assertions ?? {};
+  const privateWorkerMount = [
+    {
+      destination: "/var/lib/portal-dp/private-objects",
+      type: "volume",
+      writable: true,
+    },
+  ];
   const valid =
-    report?.schemaVersion === 1 &&
+    report?.schemaVersion === 2 &&
     report?.reportType === "OCI_SECURITY_CONFIGURATION_VERIFICATION" &&
     report?.status === "PASSOU" &&
     Object.values(assertions).length === 8 &&
     Object.values(assertions).every((item) => item?.status === "PASSOU") &&
     assertions.processIdentity?.user === "65532:65532" &&
     assertions.immutableRootFilesystem?.readOnly === true &&
+    JSON.stringify(
+      assertions.immutableRootFilesystem?.writablePersistentMounts,
+    ) === JSON.stringify([]) &&
     JSON.stringify(assertions.droppedCapabilities?.values) ===
       JSON.stringify(["ALL"]) &&
     assertions.privilegeEscalation?.noNewPrivileges === true &&
@@ -19,6 +29,8 @@ export function validateSecurityConfigurationReport(report) {
     JSON.stringify(assertions.workerRuntimeSecurity?.droppedCapabilities) ===
       JSON.stringify(["ALL"]) &&
     assertions.workerRuntimeSecurity?.noNewPrivileges === true &&
+    JSON.stringify(assertions.workerRuntimeSecurity?.persistentMounts) ===
+      JSON.stringify(privateWorkerMount) &&
     assertions.syntheticApiRoute?.enabled === false &&
     assertions.syntheticApiRoute?.observedStatusCode === 404 &&
     assertions.runtime?.base === expectedBase &&
@@ -26,8 +38,9 @@ export function validateSecurityConfigurationReport(report) {
       JSON.stringify(["/nodejs/bin/node"]) &&
     JSON.stringify(assertions.runtime?.command) ===
       JSON.stringify(["apps/api/dist/main.js"]) &&
-    assertions.privateObjectStorage?.declaredVolume === true &&
-    assertions.privateObjectStorage?.runtimeMount === "volume:true" &&
+    JSON.stringify(assertions.privateObjectStorage?.imageDeclaredVolumes) ===
+      JSON.stringify([]) &&
+    assertions.privateObjectStorage?.explicitWorkerMount === true &&
     assertions.privateObjectStorage?.rootPermissions === "65532:65532:700" &&
     assertions.privateObjectStorage?.objectPermissions === "65532:65532:600";
   if (!valid) {

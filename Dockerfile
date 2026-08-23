@@ -47,8 +47,9 @@ ENV NODE_ENV=production
 ENV API_HOST=0.0.0.0
 ENV PRIVATE_OBJECT_ROOT=/var/lib/portal-dp/private-objects
 WORKDIR /app
-# O processo pode ler o programa, mas nao e proprietario dele. Somente o volume
-# privado abaixo permanece gravavel pelo UID/GID 65532.
+# O processo pode ler o programa, mas nao e proprietario dele. Este diretorio
+# permanece somente leitura na API; o worker deve receber um volume explicito
+# em tempo de execucao para materializar objetos privados.
 COPY --from=production-dependencies /workspace/node_modules ./node_modules
 COPY --from=production-dependencies /workspace/apps ./apps
 COPY --from=production-dependencies /workspace/packages ./packages
@@ -62,7 +63,6 @@ COPY --from=build /workspace/packages/integrations/dist ./packages/integrations/
 COPY --from=build /workspace/packages/observability/dist ./packages/observability/dist
 COPY --from=build /workspace/packages/storage/dist ./packages/storage/dist
 COPY --from=production-dependencies --chown=65532:65532 --chmod=0700 /runtime-private-objects /var/lib/portal-dp/private-objects
-VOLUME ["/var/lib/portal-dp/private-objects"]
 USER 65532:65532
 EXPOSE 3000
 CMD ["apps/api/dist/main.js"]

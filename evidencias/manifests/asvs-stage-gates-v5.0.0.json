@@ -9,7 +9,7 @@
   },
   "evidenceRepository": {
     "bindingCatalogPath": "evidencias/manifests/evidence-bindings-etp00-v1.json",
-    "bindingCatalogSha256": "aeda678fd20c92a3bcd28b4525de303ca900f68931148eb54466ff18841a7813",
+    "bindingCatalogSha256": "26ad87dbc0dd6dfb608ff44d31220491c381d4b398a0ac4334540b53bf97029b",
     "runManifestPath": null,
     "runManifestSha256": null
   },
@@ -133,7 +133,11 @@
           "caseId": "QAT-SEC-034",
           "status": "PLANEJADA",
           "result": "BLOQUEADO",
-          "requiredBindingRuleIdGroups": [["BIND-SECRET-SCAN"]],
+          "requiredBindingRuleIdGroups": [
+            ["BIND-SECRET-SCAN"],
+            ["BIND-SECRET-SCAN-CONTENT"],
+            ["BIND-SECRET-SCAN-IMAGE"]
+          ],
           "evidenceArtifactIds": [],
           "producedAt": null,
           "responsible": null,

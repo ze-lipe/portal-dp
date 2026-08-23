@@ -192,9 +192,10 @@ const result = await finalizeEvidenceRun({
     classification:
       process.env["EVIDENCE_CLASSIFICATION"] ?? "INTERNO_RESTRITO",
     enforcement:
-      process.env["GITHUB_ACTIONS"] === "true"
-        ? "GITHUB_REPOSITORY_AND_ACTIONS_ARTIFACT_ACL"
-        : "FILESYSTEM_WORKSPACE_ACL",
+      process.env["EVIDENCE_ACL_ENFORCEMENT"] ??
+      (process.env["GITHUB_ACTIONS"] === "true"
+        ? "GITHUB_PUBLIC_REPOSITORY_ACTIONS_ARTIFACT_VISIBILITY"
+        : "FILESYSTEM_WORKSPACE_ACL"),
     readers: csv(
       process.env["EVIDENCE_ACL_READERS"],
       repository

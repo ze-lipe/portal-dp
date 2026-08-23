@@ -47,8 +47,8 @@ ALTER ROLE portal_dp_app_login
 ALTER ROLE portal_dp_worker_login
   NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
 
--- As identidades de login não herdam privilégios e assumem explicitamente o
--- papel lógico. RESET ROLE retorna a uma identidade sem acesso ao negócio.
+-- As identidades de login não herdam privilégios e podem assumir somente o
+-- papel lógico correspondente. SET ROLE NONE retorna ao login sem acesso.
 GRANT portal_dp_app TO portal_dp_app_login;
 GRANT portal_dp_worker TO portal_dp_worker_login;
 

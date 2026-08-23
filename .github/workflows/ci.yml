@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: etp00-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Falha cedo se alguma acao JavaScript ainda nao for compativel com o runtime atual.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -15,6 +19,7 @@ env:
 jobs:
   planning-windows:
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -37,7 +42,8 @@ jobs:
           if (git status --porcelain) { throw 'Os validadores alteraram arquivos rastreados.' }
 
   code-and-postgres:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:18.6-bookworm@sha256:7d2695c3aa88e792e8b3b233e7e4adb296a20412c6c0ca361e3edaaacfada108
@@ -106,8 +112,42 @@ jobs:
       - run: pnpm test:integration:database
       - run: pnpm verify:gat02-report
       - run: pnpm security:sbom
+      - name: Varrer build, fixtures e evidencias antes de qualquer upload
+        id: generated-secret-scan
+        if: ${{ always() }}
+        continue-on-error: true
+        env:
+          GENERATED_SECRET_SCAN_PROFILE: GENERATED
+          GENERATED_SECRET_SCAN_OUTPUT_PATH: evidencias/resumos-seguranca/content-secret-scan-generated.json
+        shell: bash
+        run: |
+          bash scripts/run-content-secret-scan.sh \
+            --scope BUILD_PACKAGE=apps/api/dist \
+            --scope BUILD_PACKAGE=apps/web/dist \
+            --scope BUILD_PACKAGE=apps/worker/dist \
+            --scope BUILD_PACKAGE=packages/contracts/dist \
+            --scope BUILD_PACKAGE=packages/database/dist \
+            --scope BUILD_PACKAGE=packages/domain/dist \
+            --scope BUILD_PACKAGE=packages/integrations/dist \
+            --scope BUILD_PACKAGE=packages/observability/dist \
+            --scope BUILD_PACKAGE=packages/storage/dist \
+            --scope BUILD_PACKAGE=packages/testing/dist \
+            --scope TEST_FIXTURES=database/seeds \
+            --scope TEST_FIXTURES=packages/testing/src \
+            --scope TEST_FIXTURES=packages/testing/tests \
+            --scope TEST_FIXTURES=tests \
+            --scope GENERATED_EVIDENCE=evidencias/artefatos \
+            --scope GENERATED_EVIDENCE=evidencias/resultados
+      - name: Preservar somente o resumo sanitizado da varredura gerada
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: etp00-raw-generated-secret-scan-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidencias/resumos-seguranca/content-secret-scan-generated.json
+          if-no-files-found: error
+          retention-days: 90
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        if: always()
+        if: ${{ always() && steps.generated-secret-scan.outputs.passed == 'true' }}
         with:
           name: etp00-raw-code-and-postgres-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -115,9 +155,13 @@ jobs:
             evidencias/resultados
           if-no-files-found: warn
           retention-days: 90
+      - name: Reprovar build, fixtures ou evidencias com conteudo proibido
+        if: ${{ always() && steps.generated-secret-scan.outputs.passed != 'true' }}
+        run: exit 1
 
   sast:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -161,17 +205,40 @@ jobs:
           node scripts/finalize-semgrep-report.mjs
           rm -f -- evidencias/resultados/sast-semgrep.raw.json
           exit "$semgrep_status"
+      - name: Varrer a evidencia SAST antes de publica-la
+        id: sast-evidence-secret-scan
+        if: ${{ always() }}
+        continue-on-error: true
+        env:
+          GENERATED_SECRET_SCAN_PROFILE: SAST_EVIDENCE
+          GENERATED_SECRET_SCAN_OUTPUT_PATH: evidencias/resumos-seguranca/content-secret-scan-sast-evidence.json
+        shell: bash
+        run: >-
+          bash scripts/run-content-secret-scan.sh
+          --scope SAST_EVIDENCE=evidencias/resultados
+      - name: Preservar resumo sanitizado da varredura SAST
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: etp00-raw-sast-secret-scan-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidencias/resumos-seguranca/content-secret-scan-sast-evidence.json
+          if-no-files-found: error
+          retention-days: 90
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        if: always()
+        if: ${{ always() && steps.sast-evidence-secret-scan.outputs.passed == 'true' }}
         with:
           name: etp00-raw-sast-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: evidencias/resultados/sast-semgrep.json
           if-no-files-found: warn
           retention-days: 90
+      - name: Reprovar evidencia SAST com conteudo proibido
+        if: ${{ always() && steps.sast-evidence-secret-scan.outputs.passed != 'true' }}
+        run: exit 1
 
   oci-image:
     needs: [planning-windows, code-and-postgres, secret-scan, sast]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:18.6-bookworm@sha256:7d2695c3aa88e792e8b3b233e7e4adb296a20412c6c0ca361e3edaaacfada108
@@ -239,13 +306,23 @@ jobs:
         with:
           context: .
           push: false
-          provenance: mode=max
-          sbom: true
+          provenance: mode=max,version=v1,builder-id=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # O gerador tambem fica imutavel; a atualizacao exige revisao explicita.
+          sbom: generator=docker.io/docker/buildkit-syft-scanner@sha256:79e7b013cbec16bbb436f312819a49a4a57752b2270c1a9332ae1a10fcc82a68
           tags: portal-dp:${{ github.sha }}
           platforms: linux/amd64
           outputs: |
             type=docker,name=portal-dp:${{ github.sha }}
             type=oci,dest=/tmp/portal-dp.oci.tar
+      - name: Vincular os scanners ao ImageID carregado localmente
+        id: local-image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image_id="$(docker image inspect \
+            --format '{{.Id}}' "portal-dp:${GITHUB_SHA}")"
+          [[ "$image_id" =~ ^sha256:[a-f0-9]{64}$ ]]
+          printf 'image-id=%s\n' "$image_id" >> "$GITHUB_OUTPUT"
       - name: Smoke da API e do worker no mesmo artefato
         shell: bash
         run: |
@@ -295,6 +372,7 @@ jobs:
 
           docker run --detach --name "$worker_container" --network host \
             --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --mount type=volume,destination=/var/lib/portal-dp/private-objects \
             --cap-drop ALL --security-opt no-new-privileges \
             --env NODE_ENV=test \
             --env WORKER_DATABASE_URL \
@@ -357,18 +435,31 @@ jobs:
             --runtime-base "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.base.name"}}' "$image")" \
             --entrypoint "$(docker image inspect --format '{{json .Config.Entrypoint}}' "$image")" \
             --command "$(docker image inspect --format '{{json .Config.Cmd}}' "$image")" \
-            --private-volume-declared "$(docker image inspect --format '{{if index .Config.Volumes "/var/lib/portal-dp/private-objects"}}true{{else}}false{{end}}' "$image")" \
-            --private-volume-mount "$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/var/lib/portal-dp/private-objects"}}{{printf "%s:%t" .Type .RW}}{{end}}{{end}}' "$worker_container")" \
+            --image-declared-volumes "$(docker image inspect --format '{{json .Config.Volumes}}' "$image")" \
+            --api-mounts "$(docker inspect --format '{{json .Mounts}}' "$api_container")" \
+            --worker-mounts "$(docker inspect --format '{{json .Mounts}}' "$worker_container")" \
             --private-root-permissions "$(docker exec "$worker_container" /nodejs/bin/node -e 'const fs=require("fs");const s=fs.statSync(process.argv[1]);process.stdout.write(`${s.uid}:${s.gid}:${(s.mode&0o777).toString(8)}`)' /var/lib/portal-dp/private-objects)" \
             --private-object-permissions "$(docker exec "$worker_container" /nodejs/bin/node -e 'const fs=require("fs");const s=fs.statSync(process.argv[1]);process.stdout.write(`${s.uid}:${s.gid}:${(s.mode&0o777).toString(8)}`)' "/var/lib/portal-dp/private-objects/${company_id}/${object_id}.bin")"
+      - name: Fixar politica Trivy sem ignores ou exclusoes herdadas
+        id: trivy-policy
+        run: >-
+          node scripts/prepare-trivy-policy.mjs
+          --root .
+          --output-directory "${RUNNER_TEMP}/portal-dp-trivy"
       - name: Trivy — vulnerabilidades criticas/altas da imagem
         id: trivy-image
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.70.0
           image-ref: portal-dp:${{ github.sha }}
+          scanners: vuln
+          # Mantem cobertura verificavel mesmo quando nao ha vulnerabilidades.
+          list-all-pkgs: "true"
+          trivy-config: ${{ runner.temp }}/portal-dp-trivy/trivy.yaml
+          trivyignores: ${{ runner.temp }}/portal-dp-trivy/.trivyignore
           format: json
-          output: evidencias/resultados/trivy-image.json
+          output: ${{ runner.temp }}/trivy-image.raw.json
           exit-code: "1"
           vuln-type: os,library
           severity: CRITICAL,HIGH
@@ -378,17 +469,63 @@ jobs:
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.70.0
           scan-type: config
           scan-ref: .
+          scanners: misconfig
+          trivy-config: ${{ runner.temp }}/portal-dp-trivy/trivy.yaml
+          trivyignores: ${{ runner.temp }}/portal-dp-trivy/.trivyignore
           format: json
-          output: evidencias/resultados/trivy-config.json
+          output: ${{ runner.temp }}/trivy-config.raw.json
           exit-code: "1"
           severity: CRITICAL,HIGH
           hide-progress: true
+      - name: Resumir Trivy e liberar relatorios somente quando aprovados
+        id: trivy-summary
+        if: ${{ always() }}
+        env:
+          TRIVY_SCAN_IMAGE_REPORT_PATH: ${{ runner.temp }}/trivy-image.raw.json
+          TRIVY_SCAN_CONFIG_REPORT_PATH: ${{ runner.temp }}/trivy-config.raw.json
+          TRIVY_SCAN_EXPECTED_IMAGE: portal-dp:${{ github.sha }}
+          TRIVY_SCAN_EXPECTED_IMAGE_ID: ${{ steps.local-image.outputs.image-id }}
+          TRIVY_SCAN_EXPECTED_CONFIG_COMMIT: ${{ github.sha }}
+          TRIVY_SCAN_IMAGE_STEP_OUTCOME: ${{ steps.trivy-image.outcome }}
+          TRIVY_SCAN_CONFIG_STEP_OUTCOME: ${{ steps.trivy-config.outcome }}
+          TRIVY_SCAN_OUTPUT_PATH: evidencias/resumos-seguranca/trivy-scan-result.json
+          TRIVY_SCAN_APPROVED_IMAGE_PATH: evidencias/resultados/trivy-image.json
+          TRIVY_SCAN_APPROVED_CONFIG_PATH: evidencias/resultados/trivy-config.json
+        run: node scripts/write-trivy-scan-result.mjs
+      - name: Trivy — segredos no filesystem e nas camadas da imagem real
+        id: trivy-image-secrets
+        if: ${{ always() && steps.trivy-policy.outcome == 'success' && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.70.0
+          cache: false
+          image-ref: portal-dp:${{ github.sha }}
+          scanners: secret
+          trivy-config: ${{ runner.temp }}/portal-dp-trivy/trivy.yaml
+          trivyignores: ${{ runner.temp }}/portal-dp-trivy/.trivyignore
+          format: json
+          output: ${{ runner.temp }}/trivy-image-secrets.json
+          exit-code: "1"
+          hide-progress: true
+      - name: Reduzir a varredura da imagem a um resumo sem conteudo sensivel
+        id: image-secret-summary
+        if: ${{ always() }}
+        env:
+          IMAGE_SECRET_SCAN_STEP_OUTCOME: ${{ steps.trivy-image-secrets.outcome }}
+          IMAGE_SECRET_SCAN_REPORT_PATH: ${{ runner.temp }}/trivy-image-secrets.json
+          IMAGE_SECRET_SCAN_EXPECTED_IMAGE: portal-dp:${{ github.sha }}
+          IMAGE_SECRET_SCAN_EXPECTED_IMAGE_ID: ${{ steps.local-image.outputs.image-id }}
+          IMAGE_SECRET_SCAN_OUTPUT_PATH: evidencias/resumos-seguranca/image-secret-scan-result.json
+        run: node scripts/write-image-secret-scan-result.mjs
       - name: Registrar digest do mesmo artefato
         env:
           OCI_BUILD_DIGEST: ${{ steps.build.outputs.digest }}
           OCI_BUILD_METADATA_JSON: ${{ steps.build.outputs.metadata }}
+          OCI_EXPECTED_BUILDER_ID: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           cp /tmp/portal-dp.oci.tar evidencias/artefatos/portal-dp.oci.tar
           sha256sum evidencias/artefatos/portal-dp.oci.tar \
@@ -397,13 +534,31 @@ jobs:
             --format '{{.Id}}' "portal-dp:${GITHUB_SHA}")"
           node scripts/write-oci-build-evidence.mjs \
             evidencias/artefatos/portal-dp.oci.tar
-      - name: Reprovar vulnerabilidade ou configuracao critica/alta
-        if: >-
-          ${{ steps.trivy-image.outcome != 'success' ||
-              steps.trivy-config.outcome != 'success' }}
-        run: exit 1
+      - name: Varrer artefatos e evidencias OCI antes de publica-los
+        id: oci-evidence-secret-scan
+        if: ${{ always() }}
+        continue-on-error: true
+        env:
+          GENERATED_SECRET_SCAN_PROFILE: OCI_EVIDENCE
+          GENERATED_SECRET_SCAN_OUTPUT_PATH: evidencias/resumos-seguranca/content-secret-scan-oci-evidence.json
+        shell: bash
+        run: |
+          bash scripts/run-content-secret-scan.sh \
+            --scope OCI_EVIDENCE=evidencias/artefatos \
+            --scope OCI_EVIDENCE=evidencias/resultados
+      - name: Preservar somente resumos sanitizados dos scans OCI
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: etp00-raw-oci-secret-scans-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            evidencias/resumos-seguranca/content-secret-scan-oci-evidence.json
+            evidencias/resumos-seguranca/image-secret-scan-result.json
+            evidencias/resumos-seguranca/trivy-scan-result.json
+          if-no-files-found: error
+          retention-days: 90
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        if: always()
+        if: ${{ always() && steps.trivy-summary.outputs.passed == 'true' && steps.image-secret-summary.outputs.passed == 'true' && steps.oci-evidence-secret-scan.outputs.passed == 'true' }}
         with:
           name: etp00-raw-oci-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -411,9 +566,14 @@ jobs:
             evidencias/resultados
           if-no-files-found: warn
           retention-days: 90
+          compression-level: 0
+      - name: Reprovar imagem ou evidencia OCI com segredo ou dado proibido
+        if: ${{ always() && (steps.trivy-summary.outputs.passed != 'true' || steps.image-secret-summary.outputs.passed != 'true' || steps.oci-evidence-secret-scan.outputs.passed != 'true') }}
+        run: exit 1
 
   secret-scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -532,7 +692,8 @@ jobs:
   evidence-repository:
     if: ${{ always() }}
     needs: [planning-windows, code-and-postgres, secret-scan, sast, oci-image]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     env:
       EVIDENCE_RUN_ID: gh-${{ github.run_id }}-${{ github.run_attempt }}
       EVIDENCE_SOURCE_DIR: evidencias/coleta
@@ -540,6 +701,11 @@ jobs:
       EVIDENCE_BINDINGS: evidencias/manifests/evidence-bindings-etp00-v1.json
       EVIDENCE_RESPONSIBLE_ROLE: AUTOMACAO_ETP00
       EVIDENCE_RETENTION_DAYS: "90"
+      # O repositorio atual e publico. Somente artefatos previamente
+      # sanitizados podem chegar ao transporte do GitHub Actions.
+      EVIDENCE_CLASSIFICATION: PUBLICO_SANITIZADO
+      EVIDENCE_ACL_ENFORCEMENT: GITHUB_PUBLIC_REPOSITORY_ACTIONS_ARTIFACT_VISIBILITY
+      EVIDENCE_ACL_READERS: public:github-repository-readers
       EVIDENCE_JOB_RESULTS_JSON: >-
         {"planning-windows":"${{ needs.planning-windows.result }}","code-and-postgres":"${{ needs.code-and-postgres.result }}","secret-scan":"${{ needs.secret-scan.result }}","sast":"${{ needs.sast.result }}","oci-image":"${{ needs.oci-image.result }}"}
       EVIDENCE_METADATA_JSON: >-
@@ -560,20 +726,78 @@ jobs:
         env:
           EVIDENCE_ARTIFACT_DOWNLOAD_OUTCOME: ${{ steps.raw-evidence-download.outcome }}
         run: node scripts/write-evidence-run-context.mjs
+      - name: Varrer toda a coleta antes de sela-la
+        id: collected-evidence-secret-scan
+        if: ${{ always() }}
+        continue-on-error: true
+        env:
+          GENERATED_SECRET_SCAN_PROFILE: COLLECTED_EVIDENCE
+          GENERATED_SECRET_SCAN_OUTPUT_PATH: evidencias/coleta/_sanitized/content-secret-scan-collected-evidence.json
+        shell: bash
+        run: >-
+          bash scripts/run-content-secret-scan.sh
+          --scope COLLECTED_EVIDENCE=evidencias/coleta
+      - name: Preservar sempre o resumo sanitizado da coleta
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: etp00-collected-secret-scan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidencias/coleta/_sanitized/content-secret-scan-collected-evidence.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Selar e verificar o manifesto imutavel
+        id: seal-evidence
+        if: ${{ always() && steps.collected-evidence-secret-scan.outputs.passed == 'true' }}
         env:
           EVIDENCE_ARTIFACT_DOWNLOAD_OUTCOME: ${{ steps.raw-evidence-download.outcome }}
         run: |
           node scripts/finalize-evidence-run.mjs
           node scripts/validate-evidence-run.mjs \
-            --require-technical-complete \
+            --preservation-structure-only \
             --bindings "$EVIDENCE_BINDINGS" \
             --manifest "evidencias/repositorio/runs/${EVIDENCE_RUN_ID}/manifest.json"
+      - name: Varrer o pacote selado antes da publicacao final
+        id: sealed-evidence-secret-scan
+        if: ${{ always() && steps.seal-evidence.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          GENERATED_SECRET_SCAN_PROFILE: SEALED_EVIDENCE
+          GENERATED_SECRET_SCAN_OUTPUT_PATH: ${{ runner.temp }}/content-secret-scan-sealed-evidence.json
+          GENERATED_SECRET_SCAN_SUBJECT_MANIFEST_PATH: evidencias/repositorio/runs/${{ env.EVIDENCE_RUN_ID }}/manifest.json
+        shell: bash
+        run: >-
+          bash scripts/run-content-secret-scan.sh
+          --scope SEALED_EVIDENCE=evidencias/repositorio/runs/${EVIDENCE_RUN_ID}
+      - name: Validar vinculo do recibo final ao manifesto e ao pacote
+        id: sealed-evidence-receipt-contract
+        if: ${{ always() && steps.sealed-evidence-secret-scan.outcome != 'skipped' }}
+        run: |
+          node scripts/validate-sealed-evidence-scan-receipt.mjs \
+            --manifest "evidencias/repositorio/runs/${EVIDENCE_RUN_ID}/manifest.json" \
+            --receipt "${RUNNER_TEMP}/content-secret-scan-sealed-evidence.json"
+      - name: Preservar o resumo sanitizado da verificacao final
+        if: ${{ always() && steps.sealed-evidence-receipt-contract.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: etp00-sealed-secret-scan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/content-secret-scan-sealed-evidence.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Publicar repositorio selado da execucao
-        if: ${{ always() }}
+        if: ${{ always() && steps.seal-evidence.outcome == 'success' && steps.sealed-evidence-receipt-contract.outputs.passed == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: etp00-evidence-run-${{ github.run_id }}-${{ github.run_attempt }}
           path: evidencias/repositorio/runs/${{ env.EVIDENCE_RUN_ID }}
           if-no-files-found: error
           retention-days: 90
+      - name: Aplicar gate tecnico depois da preservacao segura
+        if: ${{ always() && steps.seal-evidence.outcome == 'success' && steps.sealed-evidence-receipt-contract.outputs.passed == 'true' }}
+        run: |
+          node scripts/validate-evidence-run.mjs \
+            --require-technical-complete \
+            --bindings "$EVIDENCE_BINDINGS" \
+            --manifest "evidencias/repositorio/runs/${EVIDENCE_RUN_ID}/manifest.json"
+      - name: Reprovar coleta ou pacote selado com conteudo proibido
+        if: ${{ always() && (steps.collected-evidence-secret-scan.outputs.passed != 'true' || (steps.seal-evidence.outcome == 'success' && steps.sealed-evidence-receipt-contract.outputs.passed != 'true')) }}
+        run: exit 1

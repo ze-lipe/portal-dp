@@ -23,7 +23,7 @@ reprovada, mas `--require-complete` falha se qualquer job obrigatório não for
 aprovado, se o download não terminar, se um relatório obrigatório não estiver
 presente ou se a retenção oficial ainda não estiver comprovada.
 
-O contrato executável é `portal-dp/evidence-repository@1.1.0`, esquema 2. Ele
+O contrato executável é `portal-dp/evidence-repository@1.2.0`, esquema 2. Ele
 exige:
 
 - versão da aplicação, agregado das migrações e hash da fixture sintética;
@@ -47,6 +47,14 @@ recusa um ID apenas declarado, um arquivo arbitrário ou um catálogo alterado.
 Relatórios críticos também passam por validação semântica específica; JSON
 bem-formado, isoladamente, não comprova o requisito.
 
+O relatório do histórico Git não substitui a cobertura dos arquivos produzidos
+durante a execução. Antes de cada upload, o CI varre builds, fixtures, SBOMs e
+demais evidências; também inspeciona a imagem OCI real e suas camadas. A coleta
+agregada e o pacote já selado são varridos novamente. Relatórios brutos de
+achados ficam somente no diretório temporário do executor; os artefatos recebem
+apenas resumos sanitizados com versão da ferramenta, escopo, contagens e hash
+agregado, sem caminho, trecho ou valor encontrado.
+
 ## Imutabilidade e substituição
 
 Um `run-id` existente nunca é reaberto nem sobrescrito. Uma correção usa outro
@@ -54,9 +62,13 @@ Um `run-id` existente nunca é reaberto nem sobrescrito. Uma correção usa outr
 herda toda a cadeia de hashes; as anteriores continuam necessárias para validar
 a sequência completa.
 
-O armazenamento do GitHub Actions aplica a ACL do repositório ao artefato
-selado. O manifesto registra o workflow como escritor efetivo e o ator apenas
-como iniciador. Os arquivos locais recebem permissão somente leitura como defesa
+Como o repositório atual é público, os artefatos transportados pelo GitHub
+Actions são classificados como `PUBLICO_SANITIZADO`; o manifesto não afirma uma
+restrição que o transporte não aplica. Somente material aprovado pelas varreduras
+anteriores pode ser publicado. Um repositório privado futuro deverá usar
+explicitamente `INTERNO_RESTRITO` com o mecanismo privado correspondente. O
+manifesto registra o workflow como escritor efetivo e o ator apenas como
+iniciador. Os arquivos locais recebem permissão somente leitura como defesa
 adicional, mas o filesystem local continua sendo apenas tamper-evident, não WORM.
 Os dados de origem presentes no manifesto são declarações da própria execução.
 Por isso, um aceite real também exige que cada homologador abra a `runUrl` no
@@ -111,6 +123,15 @@ Senha, cookie, token CSRF, TOTP, credencial, CPF/CNPJ integral, salário, ASO ou
 conteúdo pessoal não pode ser colocado na coleta geral. O script comprova
 integridade e metadados; ele não substitui sanitização, homologação humana nem a
 aprovação nominal ASVS.
+
+A política complementar `PORTAL_DP_PROHIBITED_DATA_V2` bloqueia CPF e CNPJ com
+dígitos verificadores válidos, e-mail fora dos domínios reservados de teste e
+valores estruturados de CID/CRM. Metadados públicos de dependências sob
+`node_modules` não são classificados como dados empresariais; esses bytes ainda
+passam integralmente por Gitleaks, Trivy e SCA. O restante da imagem, os SBOMs e
+as evidências continuam cobertos pela política. Uma massa sintética que precise
+parecer válida exige alteração formal e versionada; não se admite exceção
+silenciosa no repositório.
 
 A aprovação ASVS exige responsável nominal, instante ISO válido e o SHA-256 do
 perfil/controles exatamente aprovados. Alterar esse conteúdo invalida o vínculo;

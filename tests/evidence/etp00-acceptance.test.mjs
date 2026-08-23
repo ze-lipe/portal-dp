@@ -17,6 +17,7 @@ import {
   etp00EvidenceRequirements,
   finalizeEvidenceRun,
 } from "../../scripts/evidence-repository.mjs";
+import { aggregateContentScanEntries } from "../../scripts/content-scan-aggregate.mjs";
 import { removeHardenedFixture } from "./remove-hardened-fixture.mjs";
 
 const execute = promisify(execFile);
@@ -71,6 +72,67 @@ function repositoryRelative(path) {
 
 async function json(path) {
   return JSON.parse(await readFile(path, "utf8"));
+}
+
+function contentSecretScanReport(profile, scopes, coverage = null) {
+  const scopeStats = coverage
+    ? [
+        {
+          scope: scopes[0],
+          fileCount: coverage.fileCount,
+          byteCount: coverage.byteCount,
+        },
+      ]
+    : scopes.map((scope) => ({
+        scope,
+        fileCount: 1,
+        byteCount: 128,
+      }));
+  return {
+    schemaVersion: 1,
+    reportType: "CONTENT_SECRET_SCAN_RESULT",
+    profile,
+    scanner: "gitleaks-cli+portal-dp-prohibited-data",
+    scannerVersion: "8.24.3",
+    scannerDistributionSha256:
+      "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c",
+    integrityVerified: true,
+    scannerVersionVerified: true,
+    scanMode: "directory-with-archives",
+    scopes,
+    scopeStats,
+    fileCount: coverage?.fileCount ?? scopeStats.length,
+    byteCount: coverage?.byteCount ?? scopeStats.length * 128,
+    aggregateSha256: coverage?.aggregateSha256 ?? "a".repeat(64),
+    prohibitedDataPolicy: "PORTAL_DP_PROHIBITED_DATA_V2",
+    prohibitedDataArchiveInspection: "FAIL_CLOSED_TAR_ZIP_OCI_V1",
+    prohibitedDataArchiveMaxDepth: 4,
+    prohibitedDataArchiveMaxEntries: 50_000,
+    prohibitedDataArchiveMaxEntryBytes: 268_435_456,
+    prohibitedDataArchiveMaxExpandedBytes: 2_147_483_648,
+    prohibitedDataArchiveMaxCompressionRatio: 200,
+    prohibitedDataArchiveEntryCount: 3,
+    prohibitedDataExpandedByteCount: 1536,
+    prohibitedDataFindingCount: 0,
+    configurationPolicy: "BUILT_IN_DEFAULT_NO_REPOSITORY_OVERRIDES",
+    gitleaksAllowIgnored: true,
+    archiveDepth: 3,
+    decodeDepth: 2,
+    timeoutSeconds: 300,
+    reportFormat: "sarif-2.1.0-temporary",
+    redacted: true,
+    rawReportRetained: false,
+    stagedInputRetained: false,
+    installOutcome: "success",
+    scanStepOutcome: "success",
+    exitCode: 0,
+    gitleaksFindingCount: 0,
+    findingCount: 0,
+    outcome: "success",
+    failureCode: null,
+    passed: true,
+    conclusion: "SEM_ACHADOS_BLOQUEADORES",
+  };
 }
 
 function artifactContent(name, gatCatalog) {
@@ -165,6 +227,97 @@ function artifactContent(name, gatCatalog) {
       passed: true,
       conclusion: "SEM_ACHADOS_BLOQUEADORES",
     },
+    "content-secret-scan-generated.json": contentSecretScanReport("GENERATED", [
+      "BUILD_PACKAGE",
+      "GENERATED_EVIDENCE",
+      "TEST_FIXTURES",
+    ]),
+    "content-secret-scan-sast-evidence.json": contentSecretScanReport(
+      "SAST_EVIDENCE",
+      ["SAST_EVIDENCE"],
+    ),
+    "content-secret-scan-oci-evidence.json": contentSecretScanReport(
+      "OCI_EVIDENCE",
+      ["OCI_EVIDENCE"],
+    ),
+    "content-secret-scan-collected-evidence.json": contentSecretScanReport(
+      "COLLECTED_EVIDENCE",
+      ["COLLECTED_EVIDENCE"],
+    ),
+    "image-secret-scan-result.json": {
+      schemaVersion: 1,
+      reportType: "IMAGE_LAYER_SECRET_SCAN_RESULT",
+      scanner: "trivy",
+      scannerVersion: "0.70.0",
+      scannerVersionConfigured: true,
+      scannerVersionObserved: "0.70.0",
+      scannerVersionVerified: true,
+      actionRevision: "ed142fd0673e97e23eac54620cfb913e5ce36c25",
+      actionRevisionPinned: true,
+      scope: "OCI_IMAGE_FILESYSTEM_AND_LAYERS",
+      scanMode: "container-image-secret-only",
+      configurationPolicy: "CONTROLLED_NO_IGNORE_OR_SKIP_OVERRIDES",
+      expectedImageReference: `portal-dp:${"1".repeat(40)}`,
+      expectedImageId: `sha256:${"b".repeat(64)}`,
+      imageId: `sha256:${"b".repeat(64)}`,
+      imageLayerCount: 1,
+      targetCount: 1,
+      exitCodePolicy: 1,
+      stepOutcome: "success",
+      findingCount: 0,
+      redacted: true,
+      rawReportRetained: false,
+      outcome: "success",
+      failureCode: null,
+      passed: true,
+      conclusion: "SEM_ACHADOS_BLOQUEADORES",
+    },
+    "trivy-scan-result.json": {
+      schemaVersion: 1,
+      reportType: "TRIVY_SCAN_RESULT",
+      scanner: "trivy",
+      scannerVersion: "0.70.0",
+      actionRevision: "ed142fd0673e97e23eac54620cfb913e5ce36c25",
+      configurationPolicy: "CONTROLLED_NO_IGNORE_OR_SKIP_OVERRIDES",
+      expectedImageReference: `portal-dp:${"1".repeat(40)}`,
+      expectedImageId: `sha256:${"b".repeat(64)}`,
+      expectedConfigArtifactName: ".",
+      expectedConfigCommit: "1".repeat(40),
+      imageStepOutcome: "success",
+      configStepOutcome: "success",
+      reports: {
+        image: {
+          structurallyValid: true,
+          approved: true,
+          failureCode: null,
+          artifactName: `portal-dp:${"1".repeat(40)}`,
+          artifactType: "container_image",
+          targetCount: 1,
+          findingCount: 0,
+          imageId: `sha256:${"b".repeat(64)}`,
+          packageCount: 1,
+        },
+        config: {
+          structurallyValid: true,
+          approved: true,
+          failureCode: null,
+          artifactName: ".",
+          artifactType: "repository",
+          targetCount: 1,
+          findingCount: 0,
+          commit: "1".repeat(40),
+          metadataSanitized: true,
+          requiredTargetType: "dockerfile",
+        },
+      },
+      rawReportsPublished: true,
+      rawFindingReportsRetained: false,
+      redacted: true,
+      outcome: "success",
+      failureCode: null,
+      passed: true,
+      conclusion: "SEM_ACHADOS_BLOQUEADORES",
+    },
     "build-toolchain-verification.json": {
       schemaVersion: 1,
       reportType: "BUILD_TOOLCHAIN_VERIFICATION",
@@ -193,10 +346,48 @@ function artifactContent(name, gatCatalog) {
       sanitization: "Fixture de contrato sem dados de ambiente.",
     },
     "trivy-image.json": {
-      Results: [{ Target: "portal-dp", Vulnerabilities: [] }],
+      SchemaVersion: 2,
+      Trivy: { Version: "0.70.0" },
+      ReportID: "019c0000-0000-7000-8000-000000000001",
+      CreatedAt: "2026-08-22T10:11:12Z",
+      ArtifactID: `sha256:${"d".repeat(64)}`,
+      ArtifactName: `portal-dp:${"1".repeat(40)}`,
+      ArtifactType: "container_image",
+      Metadata: {
+        ImageID: `sha256:${"b".repeat(64)}`,
+        DiffIDs: [`sha256:${"f".repeat(64)}`],
+        RepoTags: [`portal-dp:${"1".repeat(40)}`],
+        Reference: `portal-dp:${"1".repeat(40)}`,
+      },
+      Results: [
+        {
+          Target: "portal-dp (debian 13)",
+          Class: "os-pkgs",
+          Type: "debian",
+          Packages: [{ Name: "base-files", Version: "13.8+deb13u1" }],
+        },
+      ],
     },
     "trivy-config.json": {
-      Results: [{ Target: "Dockerfile", Misconfigurations: [] }],
+      SchemaVersion: 2,
+      Trivy: { Version: "0.70.0" },
+      ReportID: "019c0000-0000-7000-8000-000000000002",
+      CreatedAt: "2026-08-22T10:11:13Z",
+      ArtifactID: `sha256:${"1".repeat(64)}`,
+      ArtifactName: ".",
+      ArtifactType: "repository",
+      Metadata: {
+        RepoURL: "https://github.com/ze-lipe/portal-dp",
+        Commit: "1".repeat(40),
+      },
+      Results: [
+        {
+          Target: "Dockerfile",
+          Class: "config",
+          Type: "dockerfile",
+          MisconfSummary: { Successes: 31, Failures: 0 },
+        },
+      ],
     },
     "oci-build-link.json": {
       schemaVersion: 2,
@@ -240,7 +431,7 @@ function artifactContent(name, gatCatalog) {
       audit_count: "2",
     },
     "security-configuration-verification.json": {
-      schemaVersion: 1,
+      schemaVersion: 2,
       reportType: "OCI_SECURITY_CONFIGURATION_VERIFICATION",
       status: "PASSOU",
       verifiedAt: fixedTime,
@@ -248,7 +439,11 @@ function artifactContent(name, gatCatalog) {
       sanitization: "Fixture de contrato sem dados de ambiente.",
       assertions: {
         processIdentity: { status: "PASSOU", user: "65532:65532" },
-        immutableRootFilesystem: { status: "PASSOU", readOnly: true },
+        immutableRootFilesystem: {
+          status: "PASSOU",
+          readOnly: true,
+          writablePersistentMounts: [],
+        },
         droppedCapabilities: { status: "PASSOU", values: ["ALL"] },
         privilegeEscalation: { status: "PASSOU", noNewPrivileges: true },
         workerRuntimeSecurity: {
@@ -257,6 +452,13 @@ function artifactContent(name, gatCatalog) {
           readOnly: true,
           droppedCapabilities: ["ALL"],
           noNewPrivileges: true,
+          persistentMounts: [
+            {
+              destination: "/var/lib/portal-dp/private-objects",
+              type: "volume",
+              writable: true,
+            },
+          ],
         },
         syntheticApiRoute: {
           status: "PASSOU",
@@ -272,8 +474,8 @@ function artifactContent(name, gatCatalog) {
         privateObjectStorage: {
           status: "PASSOU",
           path: "/var/lib/portal-dp/private-objects",
-          declaredVolume: true,
-          runtimeMount: "volume:true",
+          imageDeclaredVolumes: [],
+          explicitWorkerMount: true,
           rootPermissions: "65532:65532:700",
           objectPermissions: "65532:65532:600",
         },
@@ -343,6 +545,12 @@ async function populateApprovedFixture(directory, options) {
     ...sbomFixtures.map(([name]) => name),
     "sast-semgrep.json",
     "gitleaks-result.json",
+    "content-secret-scan-generated.json",
+    "content-secret-scan-sast-evidence.json",
+    "content-secret-scan-oci-evidence.json",
+    "content-secret-scan-collected-evidence.json",
+    "image-secret-scan-result.json",
+    "trivy-scan-result.json",
     "portal-dp.oci.tar",
     "portal-dp.oci.sha256",
     "oci-build-link.json",
@@ -365,6 +573,54 @@ async function populateApprovedFixture(directory, options) {
     Object.assign(gitleaksReport, options.gitleaksExtraFields);
     await writeFile(gitleaksPath, `${JSON.stringify(gitleaksReport)}\n`);
   }
+  if (options.trivyImageId) {
+    const trivyImagePath = join(raw, "trivy-image.json");
+    const report = await json(trivyImagePath);
+    report.Metadata.ImageID = options.trivyImageId;
+    await writeFile(trivyImagePath, `${JSON.stringify(report)}\n`);
+  }
+  if (options.trivyConfigCommit) {
+    const trivyConfigPath = join(raw, "trivy-config.json");
+    const report = await json(trivyConfigPath);
+    report.Metadata.Commit = options.trivyConfigCommit;
+    await writeFile(trivyConfigPath, `${JSON.stringify(report)}\n`);
+  }
+  if (options.imageSecretImageId) {
+    const imageSecretPath = join(raw, "image-secret-scan-result.json");
+    const report = await json(imageSecretPath);
+    report.expectedImageId = options.imageSecretImageId;
+    report.imageId = options.imageSecretImageId;
+    await writeFile(imageSecretPath, `${JSON.stringify(report)}\n`);
+  }
+
+  const collectedSummaryName = "content-secret-scan-collected-evidence.json";
+  const collectedAggregateEntries = [];
+  for (const name of artifactFiles.filter(
+    (artifactName) => artifactName !== collectedSummaryName,
+  )) {
+    const bytes = await readFile(join(raw, name));
+    collectedAggregateEntries.push({
+      scope: "COLLECTED_EVIDENCE",
+      logicalPath: `raw/${name}`,
+      byteCount: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    });
+  }
+  const collectedCoverage = aggregateContentScanEntries(
+    collectedAggregateEntries,
+  );
+  const collectedReport = contentSecretScanReport(
+    "COLLECTED_EVIDENCE",
+    ["COLLECTED_EVIDENCE"],
+    collectedCoverage,
+  );
+  if (options.collectedAggregateSha256) {
+    collectedReport.aggregateSha256 = options.collectedAggregateSha256;
+  }
+  await writeFile(
+    join(raw, collectedSummaryName),
+    `${JSON.stringify(collectedReport)}\n`,
+  );
 
   const template = await json(templatePath);
 
@@ -722,6 +978,60 @@ test("rejeita reducao do minimo canonico de onze SBOMs", async () => {
   }
 });
 
+test("rejeita scan Trivy vinculado a outra imagem OCI", async () => {
+  const fixture = await createApprovedFixture({
+    trivyImageId: `sha256:${"9".repeat(64)}`,
+  });
+  try {
+    await assert.rejects(
+      execute(process.execPath, [
+        validator,
+        "--manifest",
+        fixture.acceptancePath,
+      ]),
+      /ImageID local esperado/u,
+    );
+  } finally {
+    await removeHardenedFixture(fixture.directory);
+  }
+});
+
+test("rejeita scan de segredos vinculado a outro ImageID local", async () => {
+  const fixture = await createApprovedFixture({
+    imageSecretImageId: `sha256:${"9".repeat(64)}`,
+  });
+  try {
+    await assert.rejects(
+      execute(process.execPath, [
+        validator,
+        "--manifest",
+        fixture.acceptancePath,
+      ]),
+      /image secret scan does not match oci-build-link\.localImageId/u,
+    );
+  } finally {
+    await removeHardenedFixture(fixture.directory);
+  }
+});
+
+test("rejeita scan Trivy de configuracao vinculado a outra revisao", async () => {
+  const fixture = await createApprovedFixture({
+    trivyConfigCommit: "9".repeat(40),
+  });
+  try {
+    await assert.rejects(
+      execute(process.execPath, [
+        validator,
+        "--manifest",
+        fixture.acceptancePath,
+      ]),
+      /commit esperado/u,
+    );
+  } finally {
+    await removeHardenedFixture(fixture.directory);
+  }
+});
+
 test("rejeita hash de artefato que diverge do pacote selado", async () => {
   const fixture = await createApprovedFixture();
   try {
@@ -777,6 +1087,24 @@ test("rejeita conteúdo extra em evidência sanitizada de segredos", async () =>
         fixture.acceptancePath,
       ]),
       /clean full-history redacted scan/u,
+    );
+  } finally {
+    await removeHardenedFixture(fixture.directory);
+  }
+});
+
+test("rejeita agregado COLLECTED_EVIDENCE adulterado", async () => {
+  const fixture = await createApprovedFixture({
+    collectedAggregateSha256: "f".repeat(64),
+  });
+  try {
+    await assert.rejects(
+      execute(process.execPath, [
+        validator,
+        "--manifest",
+        fixture.acceptancePath,
+      ]),
+      /COLLECTED_EVIDENCE aggregate does not match/u,
     );
   } finally {
     await removeHardenedFixture(fixture.directory);

@@ -51,6 +51,11 @@ das etapas seguintes. A prova usa apenas massa sintetica A/B/C.
   auditoria atual de dependências sem vulnerabilidade conhecida;
 - pipeline preparado com política de licenças, SAST Semgrep fixado por digest,
   varredura Trivy fixada por SHA e smoke da API/worker no mesmo artefato OCI;
+- `QAT-SEC-034` cobre separadamente o histórico Git completo, builds, fixtures,
+  evidências antes do upload e as camadas da imagem OCI real; relatórios brutos
+  de achados permanecem temporários e somente resumos sanitizados são enviados;
+- imagem sem `VOLUME` implícito: a API não recebe persistência gravável e o
+  worker recebe somente o armazenamento privado montado explicitamente;
 - repositório mínimo de evidências com manifesto por execução, objetos por
   SHA-256, casos, versões, identidade disponível, ACL, retenção e cadeia de
   substituição, validado por testes fail-closed;
@@ -76,6 +81,10 @@ preserva os resultados inclusive quando um gate falha; não altera o estado
 O pacote fica estruturalmente verificável, porém `complete=false` até haver
 recibo de custódia no repositório durável de longo prazo. Os 90 dias do GitHub
 Actions são transporte, não a retenção oficial exigida.
+Uma execução tecnicamente reprovada é primeiro selada e varrida para
+preservação; o gate de completude falha somente depois da publicação segura do
+pacote incompleto. Se a coleta ou o pacote selado falhar na varredura de
+conteúdo, esse material não é publicado e sobrevive apenas o resumo sanitizado.
 Por isso, o CI desta etapa valida estrutura, hashes, resultados dos jobs e cadeia
 sem exigir `--require-complete`; esse gate permanece reservado ao candidato à
 liberação da ETP-11, quando a custódia durável já deverá estar configurada.

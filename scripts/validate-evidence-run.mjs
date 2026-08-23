@@ -13,14 +13,33 @@ if (!manifestPath) {
   throw new Error("Use --manifest <path> or define EVIDENCE_MANIFEST_PATH");
 }
 const bindingsPath = argument("bindings") ?? process.env["EVIDENCE_BINDINGS"];
+const requireTechnicalComplete = process.argv.includes(
+  "--require-technical-complete",
+);
+const preservationStructureOnly = process.argv.includes(
+  "--preservation-structure-only",
+);
+
+if (
+  preservationStructureOnly &&
+  (requireTechnicalComplete ||
+    process.argv.includes("--require-complete") ||
+    process.argv.includes("--require-critical-semantics"))
+) {
+  throw new Error(
+    "--preservation-structure-only nao pode ser combinado com gates de completude ou semantica critica",
+  );
+}
 
 const result = await validateEvidenceRun({
   manifestPath: resolve(manifestPath),
   bindingsPath: bindingsPath ? resolve(bindingsPath) : undefined,
   requireComplete: process.argv.includes("--require-complete"),
-  requireTechnicalComplete: process.argv.includes(
-    "--require-technical-complete",
-  ),
+  requireTechnicalComplete,
+  requireCriticalSemantics:
+    requireTechnicalComplete ||
+    process.argv.includes("--require-critical-semantics"),
+  preservationStructureOnly,
 });
 process.stdout.write(
   `${JSON.stringify({
@@ -32,6 +51,7 @@ process.stdout.write(
     asvsApproval: result.manifest.qualityGates.asvs.status,
     complete: result.manifest.completeness.complete,
     technicalComplete: result.technicalCompletenessSatisfied,
+    criticalSemanticsValidated: result.criticalSemanticsValidated,
     releaseApprovedBySealing: false,
   })}\n`,
 );

@@ -6,6 +6,11 @@ import { dirname, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const digestPattern = /^sha256:[a-f0-9]{64}$/u;
+const inTotoStatementV1 = "https://in-toto.io/Statement/v1";
+const slsaProvenanceV1 = "https://slsa.dev/provenance/v1";
+const spdxDocumentPredicate = "https://spdx.dev/Document";
+const buildkitAttestationArtifactType =
+  "application/vnd.docker.attestation.manifest.v1+json";
 
 function assertDigest(value, label) {
   if (!digestPattern.test(value ?? "")) {
@@ -22,6 +27,130 @@ function parseJson(bytes, label) {
     return JSON.parse(bytes.toString("utf8"));
   } catch {
     throw new Error(`${label} nao contem JSON valido`);
+  }
+}
+
+function assertExpectedBuilderId(value) {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.trim() !== value
+  ) {
+    throw new Error("expectedBuilderId deve ser uma string nao vazia");
+  }
+}
+
+function assertStatementEnvelope({
+  document,
+  expectedStatementType,
+  expectedPredicateType,
+  imageReference,
+  label,
+}) {
+  if (document?._type !== expectedStatementType) {
+    throw new Error(
+      `${label} usa envelope in-toto diferente de ${expectedStatementType}`,
+    );
+  }
+  if (document.predicateType !== expectedPredicateType) {
+    throw new Error(`${label} possui predicateType divergente`);
+  }
+  if (
+    !Array.isArray(document.subject) ||
+    !document.subject.some(
+      (subject) =>
+        subject?.digest?.sha256 === imageReference.slice("sha256:".length),
+    )
+  ) {
+    throw new Error(`${label} nao referencia a imagem`);
+  }
+  if (
+    !document.predicate ||
+    typeof document.predicate !== "object" ||
+    Array.isArray(document.predicate)
+  ) {
+    throw new Error(`${label} nao possui predicate valido`);
+  }
+}
+
+function assertProvenanceStatement({
+  document,
+  predicateType,
+  imageReference,
+  expectedBuilderId,
+}) {
+  if (predicateType !== slsaProvenanceV1) {
+    throw new Error(`versao de provenance OCI nao suportada: ${predicateType}`);
+  }
+  assertStatementEnvelope({
+    document,
+    expectedStatementType: inTotoStatementV1,
+    expectedPredicateType: slsaProvenanceV1,
+    imageReference,
+    label: "provenance SLSA v1",
+  });
+  if (
+    typeof document.predicate?.buildDefinition?.buildType !== "string" ||
+    document.predicate.buildDefinition.buildType.trim() === ""
+  ) {
+    throw new Error(
+      "provenance SLSA v1 nao possui buildDefinition.buildType valido",
+    );
+  }
+  const observedBuilderId = document.predicate?.runDetails?.builder?.id;
+  if (typeof observedBuilderId !== "string" || observedBuilderId.length === 0) {
+    throw new Error(
+      "provenance SLSA v1 nao possui runDetails.builder.id valido",
+    );
+  }
+  if (observedBuilderId !== expectedBuilderId) {
+    throw new Error("builder id do provenance diverge do expectedBuilderId");
+  }
+}
+
+function assertSbomStatement({ document, imageReference }) {
+  // O BuildKit atual envolve o predicado SPDX no Statement v1 do in-toto.
+  assertStatementEnvelope({
+    document,
+    expectedStatementType: inTotoStatementV1,
+    expectedPredicateType: spdxDocumentPredicate,
+    imageReference,
+    label: "SBOM SPDX",
+  });
+  if (
+    !String(document.predicate?.spdxVersion ?? "").startsWith("SPDX-") ||
+    document.predicate?.dataLicense !== "CC0-1.0" ||
+    document.predicate?.SPDXID !== "SPDXRef-DOCUMENT" ||
+    typeof document.predicate?.name !== "string" ||
+    document.predicate.name === "" ||
+    typeof document.predicate?.documentNamespace !== "string" ||
+    document.predicate.documentNamespace === "" ||
+    typeof document.predicate?.creationInfo?.created !== "string" ||
+    Number.isNaN(Date.parse(document.predicate.creationInfo.created)) ||
+    !Array.isArray(document.predicate?.creationInfo?.creators) ||
+    document.predicate.creationInfo.creators.length === 0 ||
+    !Array.isArray(document.predicate?.packages) ||
+    document.predicate.packages.length === 0
+  ) {
+    throw new Error("SBOM SPDX nao possui documento valido");
+  }
+}
+
+function assertBuildkitAttestationManifest({ document, imageReference }) {
+  if (document?.artifactType !== buildkitAttestationArtifactType) {
+    throw new Error(
+      `manifesto de attestation OCI nao possui artifactType ${buildkitAttestationArtifactType}`,
+    );
+  }
+  if (
+    !document.subject ||
+    typeof document.subject !== "object" ||
+    Array.isArray(document.subject) ||
+    document.subject.digest !== imageReference
+  ) {
+    throw new Error(
+      "subject.digest do manifesto de attestation diverge da imagem referenciada",
+    );
   }
 }
 
@@ -79,6 +208,7 @@ export async function createOciBuildEvidence({
   buildDigest,
   localImageId,
   ociArchiveSha256,
+  expectedBuilderId,
   metadata,
   indexBytes,
   readBlob,
@@ -86,6 +216,7 @@ export async function createOciBuildEvidence({
 }) {
   assertDigest(buildDigest, "buildDigest");
   assertDigest(localImageId, "localImageId");
+  assertExpectedBuilderId(expectedBuilderId);
   if (!/^[a-f0-9]{64}$/u.test(ociArchiveSha256 ?? "")) {
     throw new Error("ociArchiveSha256 deve ser um SHA-256 valido");
   }
@@ -146,7 +277,8 @@ export async function createOciBuildEvidence({
       );
     }
     let effectiveAttestationReference = attestationReference;
-    if (isAttestationDescriptor(descriptor)) {
+    const attestationManifest = isAttestationDescriptor(descriptor);
+    if (attestationManifest) {
       attestationDescriptorCount += 1;
       attestationDescriptorDigests.add(descriptor.digest);
       effectiveAttestationReference =
@@ -205,47 +337,30 @@ export async function createOciBuildEvidence({
     const mediaType = String(descriptor.mediaType ?? "");
     if (mediaType.includes("json") || descriptor.digest === buildDigest) {
       document = parseJson(bytes, `blob OCI ${descriptor.digest}`);
+      if (attestationManifest) {
+        assertBuildkitAttestationManifest({
+          document,
+          imageReference: effectiveAttestationReference,
+        });
+      }
       if (descriptor.descriptorKind === "attestation-layer") {
         const predicateType = String(descriptor.predicateType ?? "");
-        if (
-          typeof document?._type !== "string" ||
-          !document._type.startsWith("https://in-toto.io/Statement/") ||
-          document.predicateType !== predicateType ||
-          !Array.isArray(document.subject) ||
-          !document.subject.some(
-            (subject) =>
-              subject?.digest?.sha256 ===
-              effectiveAttestationReference?.slice("sha256:".length),
-          ) ||
-          !document.predicate ||
-          typeof document.predicate !== "object" ||
-          Array.isArray(document.predicate) ||
-          (predicateType.startsWith("https://slsa.dev/provenance/") &&
-            (typeof document.predicate?.buildType !== "string" ||
-              document.predicate.buildType === "" ||
-              typeof document.predicate?.builder?.id !== "string" ||
-              document.predicate.builder.id === "")) ||
-          (predicateType === "https://spdx.dev/Document" &&
-            (!String(document.predicate?.spdxVersion ?? "").startsWith(
-              "SPDX-",
-            ) ||
-              document.predicate?.dataLicense !== "CC0-1.0" ||
-              document.predicate?.SPDXID !== "SPDXRef-DOCUMENT" ||
-              typeof document.predicate?.name !== "string" ||
-              document.predicate.name === "" ||
-              typeof document.predicate?.documentNamespace !== "string" ||
-              document.predicate.documentNamespace === "" ||
-              typeof document.predicate?.creationInfo?.created !== "string" ||
-              Number.isNaN(
-                Date.parse(document.predicate.creationInfo.created),
-              ) ||
-              !Array.isArray(document.predicate?.creationInfo?.creators) ||
-              document.predicate.creationInfo.creators.length === 0 ||
-              !Array.isArray(document.predicate?.packages) ||
-              document.predicate.packages.length === 0))
-        ) {
+        if (predicateType.startsWith("https://slsa.dev/provenance/")) {
+          assertProvenanceStatement({
+            document,
+            predicateType,
+            imageReference: effectiveAttestationReference,
+            expectedBuilderId,
+          });
+        } else if (predicateType === spdxDocumentPredicate) {
+          assertSbomStatement({
+            document,
+            imageReference: effectiveAttestationReference,
+          });
+        } else {
+          // Tipos desconhecidos exigem uma decisão explícita antes de entrarem no gate.
           throw new Error(
-            `declaracao in-toto ${descriptor.digest} nao referencia a imagem`,
+            `predicate de attestation OCI nao suportado: ${predicateType}`,
           );
         }
         const predicates =
@@ -254,7 +369,7 @@ export async function createOciBuildEvidence({
         predicatesByReference.set(effectiveAttestationReference, predicates);
       }
       const children = childDescriptors(document);
-      if (isAttestationDescriptor(descriptor)) {
+      if (attestationManifest) {
         children.push(...attestationLayerDescriptors(document));
       } else {
         children.push(...imageLayerDescriptors(document));
@@ -320,11 +435,8 @@ export async function createOciBuildEvidence({
       buildReachable.has(digest) && !attestationDescriptorDigests.has(digest),
   );
   const linkedPredicates = predicatesByReference.get(imageManifestDigest);
-  const provenanceLinked = [...(linkedPredicates ?? [])].some((predicateType) =>
-    predicateType.startsWith("https://slsa.dev/provenance/"),
-  );
-  const sbomLinked =
-    linkedPredicates?.has("https://spdx.dev/Document") ?? false;
+  const provenanceLinked = linkedPredicates?.has(slsaProvenanceV1) ?? false;
+  const sbomLinked = linkedPredicates?.has(spdxDocumentPredicate) ?? false;
   if (!imageManifestDigest || !provenanceLinked || !sbomLinked) {
     throw new Error(
       "arquivo OCI nao comprova provenance e SBOM vinculados a imagem",
@@ -410,6 +522,7 @@ async function main() {
   const report = await createOciBuildEvidence({
     buildDigest: process.env.OCI_BUILD_DIGEST,
     localImageId: process.env.OCI_LOCAL_IMAGE_ID,
+    expectedBuilderId: process.env.OCI_EXPECTED_BUILDER_ID,
     ociArchiveSha256: await hashFile(archivePath),
     metadata,
     indexBytes: archiveEntry(archivePath, "index.json"),

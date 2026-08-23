@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from "node:path";
 const projectRoot = resolve(import.meta.dirname, "../..");
 const TEMPORARY_ROOTS = [
   { parent: resolve(tmpdir()), prefix: "portal-dp-evidence-" },
+  { parent: resolve(tmpdir()), prefix: "portal-dp-trivy-policy-" },
   {
     parent: resolve(projectRoot, "evidencias"),
     prefix: ".acceptance-contract-",

@@ -184,7 +184,7 @@ describe.sequential("ETP-00 synthetic vertical proof", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("RESET ROLE returns the API to a powerless login, never to bootstrap", async () => {
+  test("role reset never reaches bootstrap and NONE returns to the powerless login", async () => {
     const client = await appPool.connect();
     try {
       const active = await client.query<{
@@ -201,6 +201,20 @@ describe.sequential("ETP-00 synthetic vertical proof", () => {
         session_user: string;
       }>("SELECT current_user, session_user");
       expect(reset.rows).toEqual([
+        {
+          // A URL ativa o papel no startup; RESET ROLE restaura exatamente
+          // esse papel lógico limitado, nunca o bootstrap ou o proprietário.
+          current_user: "portal_dp_app",
+          session_user: "portal_dp_app_login",
+        },
+      ]);
+
+      await client.query("SET ROLE NONE");
+      const none = await client.query<{
+        current_user: string;
+        session_user: string;
+      }>("SELECT current_user, session_user");
+      expect(none.rows).toEqual([
         {
           current_user: "portal_dp_app_login",
           session_user: "portal_dp_app_login",
@@ -678,8 +692,16 @@ describe.sequential("ETP-00 synthetic vertical proof", () => {
     const terminalOperationId = randomUUID();
     const terminalCorrelationId = randomUUID();
     const terminalIdempotencyKey = `idem-terminal-${randomUUID()}`;
+    // O conteúdo precisa passar pela validação do worker e reservar o metadado
+    // antes que o caminho impossível force a falha terminal de armazenamento.
     const terminalBytes = Buffer.from(
-      JSON.stringify({ schema: "ETP00_TERMINAL_FAILURE_V1" }),
+      JSON.stringify({
+        schema: "ETP00_PRIVATE_EVIDENCE_V1",
+        companyId: COMPANY_A,
+        proofRootId: proof.proofRootId,
+        operationId: terminalOperationId,
+        synthetic: true,
+      }),
       "utf8",
     );
     const terminalHash = createHash("sha256")

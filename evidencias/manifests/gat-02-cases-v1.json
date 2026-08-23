@@ -3,7 +3,7 @@
   "gate": "GAT-02",
   "expectedCount": 20,
   "caseTitles": [
-    "RESET ROLE returns the API to a powerless login, never to bootstrap",
+    "role reset never reaches bootstrap and NONE returns to the powerless login",
     "serves the canonical public session contract through the real API",
     "commits business, audit, idempotency and outbox atomically for company A",
     "reconciles a lost response and rejects a reused key with another intent",

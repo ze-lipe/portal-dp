@@ -47,9 +47,14 @@ vínculo e exige nova aprovação.
 
 O CI acrescenta SAST, política de licenças, varredura da configuração e da imagem,
 e executa API e worker em runtime distroless como UID/GID `65532`, usando o mesmo
-artefato OCI. O smoke
+artefato OCI. A imagem não declara volume implícito: a API não recebe volume
+gravável e o worker recebe explicitamente apenas o armazenamento privado. O smoke
 completo depende de Docker e PostgreSQL real; ele não é simulado em uma máquina
 que não ofereça esses serviços.
+
+Segredos e dados proibidos são verificados no histórico, nos arquivos gerados e
+nas camadas da imagem antes de qualquer publicação. Achados brutos nunca viram
+artefato; o CI preserva somente resumos sanitizados e falha de modo fechado.
 
 Cada execução do CI reúne os relatórios disponíveis em um pacote imutável,
 content-addressed e verificável. O contrato, a cadeia de substituição e as regras

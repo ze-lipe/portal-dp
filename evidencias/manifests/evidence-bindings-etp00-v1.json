@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "bindingsVersion": "ETP-00/1.1.0",
+  "bindingsVersion": "ETP-00/1.2.0",
   "rules": [
     {
       "id": "BIND-EXECUTION-CONTEXT",
@@ -100,6 +100,21 @@
       "id": "BIND-SECRET-SCAN",
       "match": "**/gitleaks-result.json",
       "cases": ["QAT-SEC-034"]
+    },
+    {
+      "id": "BIND-SECRET-SCAN-CONTENT",
+      "match": "**/content-secret-scan-*.json",
+      "cases": ["QAT-SEC-034"]
+    },
+    {
+      "id": "BIND-SECRET-SCAN-IMAGE",
+      "match": "**/image-secret-scan-result.json",
+      "cases": ["QAT-SEC-034"]
+    },
+    {
+      "id": "BIND-TRIVY-SUMMARY",
+      "match": "**/trivy-scan-result.json",
+      "cases": ["QAT-SEC-021", "QAT-SEC-037"]
     },
     {
       "id": "BIND-TRIVY-IMAGE",
