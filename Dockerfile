@@ -18,6 +18,10 @@ COPY evidencias/manifests ./evidencias/manifests
 COPY documentacao ./documentacao
 COPY docs ./docs
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+# Os testes de seguranca leem a receita e somente os snapshots publicos e
+# imutaveis do Semgrep; nenhum desses arquivos segue para o runtime final.
+COPY Dockerfile ./Dockerfile
+COPY security/semgrep/registry-snapshots ./security/semgrep/registry-snapshots
 RUN pnpm typecheck && pnpm test:unit && pnpm build
 
 FROM node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03 AS production-dependencies
