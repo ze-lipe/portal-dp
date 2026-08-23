@@ -97,6 +97,30 @@ test("workflow entrega a prova OCI ao classificador Trivy", async () => {
   );
 });
 
+test("build inclui somente o workflow necessario na etapa de validacao", async () => {
+  const [dockerfile, dockerIgnore] = await Promise.all([
+    readFile(resolve(repositoryRoot, "Dockerfile"), "utf8"),
+    readFile(resolve(repositoryRoot, ".dockerignore"), "utf8"),
+  ]);
+  const workflowCopy =
+    "COPY .github/workflows/ci.yml ./.github/workflows/ci.yml";
+  const productionStage = " AS production-dependencies";
+
+  assert.equal(dockerfile.split(workflowCopy).length - 1, 1);
+  assert.equal(
+    dockerfile.indexOf(workflowCopy) < dockerfile.indexOf(productionStage),
+    true,
+  );
+
+  const ignoreLines = dockerIgnore.split(/\r?\n/u);
+  assert.equal(ignoreLines.includes(".github/*"), true);
+  assert.equal(ignoreLines.includes(".github/workflows/*"), true);
+  assert.deepEqual(
+    ignoreLines.filter((line) => line.startsWith("!.github")),
+    ["!.github/workflows/", "!.github/workflows/ci.yml"],
+  );
+});
+
 function imageReport(vulnerabilities = []) {
   return {
     SchemaVersion: 2,

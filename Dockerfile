@@ -18,9 +18,11 @@ COPY evidencias/manifests ./evidencias/manifests
 COPY documentacao ./documentacao
 COPY docs ./docs
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-# Os testes de seguranca leem a receita e somente os snapshots publicos e
-# imutaveis do Semgrep; nenhum desses arquivos segue para o runtime final.
+# Os testes de seguranca leem a receita, o workflow canonico e somente os
+# snapshots publicos e imutaveis do Semgrep. Nenhum desses arquivos segue para
+# o runtime final.
 COPY Dockerfile ./Dockerfile
+COPY .github/workflows/ci.yml ./.github/workflows/ci.yml
 COPY security/semgrep/registry-snapshots ./security/semgrep/registry-snapshots
 RUN pnpm typecheck && pnpm test:unit && pnpm build
 
