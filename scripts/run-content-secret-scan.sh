@@ -2,8 +2,8 @@
 
 set -u
 
-scanner_version="8.24.3"
-scanner_sha256="9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c"
+scanner_version="8.30.1"
+scanner_sha256="551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
 scan_temp="$(mktemp -d)"
 archive="${scan_temp}/gitleaks.tar.gz"
 binary_directory="${scan_temp}/bin"

@@ -133,6 +133,12 @@ as evidências continuam cobertos pela política. Uma massa sintética que preci
 parecer válida exige alteração formal e versionada; não se admite exceção
 silenciosa no repositório.
 
+O Gitleaks está fixado na versão `8.30.1`, com a distribuição Linux x64
+validada pelo SHA-256 oficial antes da execução. Essa versão mantém habilitada a
+varredura de segredos em arquivos compactados com profundidade máxima três; uma
+versão sem suporte a esse parâmetro é tratada como falha operacional, sem
+reduzir silenciosamente a cobertura.
+
 A aprovação ASVS exige responsável nominal, instante ISO válido e o SHA-256 do
 perfil/controles exatamente aprovados. Alterar esse conteúdo invalida o vínculo;
 o gate não aceita data textual arbitrária nem aprovação herdada por engano.

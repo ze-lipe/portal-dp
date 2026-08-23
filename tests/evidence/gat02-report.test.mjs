@@ -10,6 +10,11 @@ const execute = promisify(execFile);
 const root = resolve(import.meta.dirname, "../..");
 const validator = resolve(root, "scripts/validate-gat02-report.mjs");
 const catalogPath = resolve(root, "evidencias/manifests/gat-02-cases-v1.json");
+const vitestCli = resolve(root, "node_modules/vitest/vitest.mjs");
+const integrationConfig = resolve(
+  root,
+  "tests/integration/database/vitest.config.ts",
+);
 
 async function report(status = "passed") {
   const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
@@ -36,11 +41,47 @@ test("accepts only the complete approved GAT-02 case catalog", async () => {
   }
 });
 
+test("keeps the collected PostgreSQL cases synchronized with the GAT-02 catalog", async () => {
+  const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
+  const result = await execute(
+    process.execPath,
+    [vitestCli, "list", "--config", integrationConfig, "--json"],
+    { cwd: root },
+  );
+  const collectedTitles = JSON.parse(result.stdout)
+    .map(({ name }) => name.split(" > ").at(-1))
+    .sort();
+
+  assert.equal(collectedTitles.length, catalog.expectedCount);
+  assert.deepEqual(collectedTitles, [...catalog.caseTitles].sort());
+});
+
 test("rejects a GAT-02 report whose cases were skipped", async () => {
   const directory = await mkdtemp(join(tmpdir(), "portal-dp-gat02-"));
   try {
     const path = join(directory, "skipped.json");
     await writeFile(path, `${JSON.stringify(await report("skipped"))}\n`);
+    await assert.rejects(
+      execute(process.execPath, [validator, path]),
+      /nao comprova os 20 casos esperados/u,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects an unapproved extra GAT-02 case even when every test passed", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "portal-dp-gat02-"));
+  try {
+    const path = join(directory, "extra-case.json");
+    const result = await report();
+    result.testResults[0].assertionResults.push({
+      title: "unapproved extra database case",
+      status: "passed",
+    });
+    result.numTotalTests += 1;
+    result.numPassedTests += 1;
+    await writeFile(path, `${JSON.stringify(result)}\n`);
     await assert.rejects(
       execute(process.execPath, [validator, path]),
       /nao comprova os 20 casos esperados/u,

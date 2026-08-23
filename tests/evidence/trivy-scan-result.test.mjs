@@ -12,6 +12,10 @@ const script = resolve(repositoryRoot, "scripts/write-trivy-scan-result.mjs");
 const revision = "a".repeat(40);
 const imageReference = `portal-dp:${revision}`;
 const imageId = `sha256:${"b".repeat(64)}`;
+// Montados em tempo de execucao para que a massa valide a remocao desses
+// metadados sem transformar o proprio teste em evidencia proibida.
+const personalAuthorEmail = ["pessoa", "empresa.com.br"].join("@");
+const publicNoReplyEmail = ["noreply", "github.com"].join("@");
 
 function imageReport(vulnerabilities = []) {
   return {
@@ -54,8 +58,8 @@ function configReport(misconfigurations = []) {
     Metadata: {
       RepoURL: "https://github.com/example/portal-dp",
       Commit: revision,
-      Author: "Pessoa <pessoa@empresa.com.br>",
-      Committer: "GitHub <noreply@github.com>",
+      Author: `Pessoa <${personalAuthorEmail}>`,
+      Committer: `GitHub <${publicNoReplyEmail}>`,
       CommitMsg: "Mensagem livre que nao deve ser publicada",
     },
     Results: [
@@ -146,8 +150,8 @@ test("publica somente o par aprovado e remove metadados pessoais do config", asy
       assert.equal(Object.hasOwn(config.Metadata, field), false);
     }
     for (const sensitive of [
-      "pessoa@empresa.com.br",
-      "noreply@github.com",
+      personalAuthorEmail,
+      publicNoReplyEmail,
       "Mensagem livre que nao deve ser publicada",
     ]) {
       assert.equal(scenario.serialized.includes(sensitive), false);

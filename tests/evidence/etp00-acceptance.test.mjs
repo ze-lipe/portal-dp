@@ -93,9 +93,9 @@ function contentSecretScanReport(profile, scopes, coverage = null) {
     reportType: "CONTENT_SECRET_SCAN_RESULT",
     profile,
     scanner: "gitleaks-cli+portal-dp-prohibited-data",
-    scannerVersion: "8.24.3",
+    scannerVersion: "8.30.1",
     scannerDistributionSha256:
-      "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c",
+      "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
     integrityVerified: true,
     scannerVersionVerified: true,
     scanMode: "directory-with-archives",
@@ -195,9 +195,9 @@ function artifactContent(name, gatCatalog) {
     "gitleaks-result.json": {
       schemaVersion: 2,
       scanner: "gitleaks-cli",
-      scannerVersion: "8.24.3",
+      scannerVersion: "8.30.1",
       scannerDistributionSha256:
-        "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c",
+        "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
       integrityVerified: true,
       scannerVersionVerified: true,
       scope: "full-git-history-all-refs-streamed",

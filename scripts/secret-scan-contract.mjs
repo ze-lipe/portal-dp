@@ -130,9 +130,9 @@ export function validateContentSecretScanReport(
     report.reportType !== "CONTENT_SECRET_SCAN_RESULT" ||
     report.profile !== expectedProfile ||
     report.scanner !== "gitleaks-cli+portal-dp-prohibited-data" ||
-    report.scannerVersion !== "8.24.3" ||
+    report.scannerVersion !== "8.30.1" ||
     report.scannerDistributionSha256 !==
-      "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c" ||
+      "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb" ||
     report.integrityVerified !== true ||
     report.scannerVersionVerified !== true ||
     report.scanMode !== "directory-with-archives" ||

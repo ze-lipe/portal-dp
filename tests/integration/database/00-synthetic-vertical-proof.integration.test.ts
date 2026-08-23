@@ -164,7 +164,10 @@ afterAll(async () => {
 // Os cenários compartilham a mesma prova sintética e verificam etapas encadeadas;
 // executá-los em paralelo criaria disputas artificiais e resultados instáveis.
 describe.sequential("ETP-00 synthetic vertical proof", () => {
-  test("startup rejects a service login with any hidden extra membership", async () => {
+  test("role reset never reaches bootstrap and NONE returns to the powerless login", async () => {
+    // A mesma prova canônica cobre tanto a validação defensiva do startup
+    // quanto as transições de papel. Mantê-las no mesmo caso preserva o
+    // catálogo aprovado de 20 cenários GAT-02 sem perder cobertura.
     await bootstrapPool.query("GRANT portal_dp_ops TO portal_dp_app_login");
     try {
       await expect(
@@ -182,9 +185,7 @@ describe.sequential("ETP-00 synthetic vertical proof", () => {
     await expect(
       assertLimitedServiceRole(appPool, "portal_dp_app", "portal_dp_app_login"),
     ).resolves.toBeUndefined();
-  });
 
-  test("role reset never reaches bootstrap and NONE returns to the powerless login", async () => {
     const client = await appPool.connect();
     try {
       const active = await client.query<{
