@@ -24,7 +24,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY Dockerfile ./Dockerfile
 COPY .github/workflows/ci.yml ./.github/workflows/ci.yml
 COPY security/semgrep/registry-snapshots ./security/semgrep/registry-snapshots
-RUN pnpm typecheck && pnpm test:unit && pnpm build
+RUN pnpm typecheck && PORTAL_DP_IMAGE_BUILD_VALIDATION=1 pnpm test:unit && pnpm build
 
 FROM node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03 AS production-dependencies
 ENV PNPM_HOME=/pnpm

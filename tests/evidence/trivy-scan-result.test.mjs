@@ -97,11 +97,11 @@ test("workflow entrega a prova OCI ao classificador Trivy", async () => {
   );
 });
 
-test("build inclui somente o workflow necessario na etapa de validacao", async () => {
-  const [dockerfile, dockerIgnore] = await Promise.all([
-    readFile(resolve(repositoryRoot, "Dockerfile"), "utf8"),
-    readFile(resolve(repositoryRoot, ".dockerignore"), "utf8"),
-  ]);
+test("build inclui o workflow somente na etapa de validacao", async () => {
+  const dockerfile = await readFile(
+    resolve(repositoryRoot, "Dockerfile"),
+    "utf8",
+  );
   const workflowCopy =
     "COPY .github/workflows/ci.yml ./.github/workflows/ci.yml";
   const productionStage = " AS production-dependencies";
@@ -111,13 +111,34 @@ test("build inclui somente o workflow necessario na etapa de validacao", async (
     dockerfile.indexOf(workflowCopy) < dockerfile.indexOf(productionStage),
     true,
   );
+});
+
+test("contexto Docker libera somente o workflow necessario", async (context) => {
+  // O Docker usa .dockerignore para formar o contexto, mas nao o disponibiliza
+  // dentro do build. A ausencia so e aceita na validacao interna explicitamente
+  // marcada; no checkout normal, o arquivo continua obrigatorio e auditado.
+  let dockerIgnore;
+  try {
+    dockerIgnore = await readFile(
+      resolve(repositoryRoot, ".dockerignore"),
+      "utf8",
+    );
+  } catch (error) {
+    assert.equal(error?.code, "ENOENT");
+    assert.equal(process.env.PORTAL_DP_IMAGE_BUILD_VALIDATION, "1");
+    context.skip(".dockerignore nao e copiavel para a etapa interna do build");
+    return;
+  }
 
   const ignoreLines = dockerIgnore.split(/\r?\n/u);
-  assert.equal(ignoreLines.includes(".github/*"), true);
-  assert.equal(ignoreLines.includes(".github/workflows/*"), true);
   assert.deepEqual(
-    ignoreLines.filter((line) => line.startsWith("!.github")),
-    ["!.github/workflows/", "!.github/workflows/ci.yml"],
+    ignoreLines.filter((line) => line.includes(".github")),
+    [
+      ".github/*",
+      "!.github/workflows/",
+      ".github/workflows/*",
+      "!.github/workflows/ci.yml",
+    ],
   );
 });
 
