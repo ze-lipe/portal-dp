@@ -133,6 +133,15 @@ as evidências continuam cobertos pela política. Uma massa sintética que preci
 parecer válida exige alteração formal e versionada; não se admite exceção
 silenciosa no repositório.
 
+Os onze SBOMs CycloneDX preservam o inventário completo produzido pelo pnpm.
+Antes da varredura e da publicação, um normalizador fail-closed converte somente
+URLs VCS GitHub de componentes terceiros com transporte SSH/SCP ou userinfo HTTPS
+para HTTPS sem userinfo e remove endereços presentes nos campos próprios de autor
+terceiro. Componentes internos, metadados do SBOM e texto arbitrário não recebem
+essa exceção. A transformação não elimina componentes, dependências, licenças,
+hashes nem referências externas que não sejam o VCS normalizado; JSON malformado,
+chaves duplicadas e formatos de contato ou VCS desconhecidos interrompem o fluxo.
+
 O Gitleaks está fixado na versão `8.30.1`, com a distribuição Linux x64
 validada pelo SHA-256 oficial antes da execução. Essa versão mantém habilitada a
 varredura de segredos em arquivos compactados com profundidade máxima três; uma
