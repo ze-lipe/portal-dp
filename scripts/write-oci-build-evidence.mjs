@@ -159,7 +159,12 @@ function childDescriptors(document) {
   if (Array.isArray(document?.manifests)) {
     children.push(...document.manifests);
   }
-  if (document?.config && typeof document.config === "object") {
+  if (
+    document?.schemaVersion === 2 &&
+    Array.isArray(document?.layers) &&
+    document?.config &&
+    typeof document.config === "object"
+  ) {
     children.push({ ...document.config, descriptorKind: "config" });
   }
   return children;

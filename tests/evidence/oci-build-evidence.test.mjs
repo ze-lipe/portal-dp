@@ -16,7 +16,14 @@ function jsonBytes(value) {
 }
 
 function fixture() {
-  const configBytes = jsonBytes({ architecture: "amd64", os: "linux" });
+  const configBytes = jsonBytes({
+    architecture: "amd64",
+    os: "linux",
+    config: {
+      Env: ["NODE_ENV=production"],
+      WorkingDir: "/workspace",
+    },
+  });
   const localImageId = digest(configBytes);
   const imageLayerBytes = Buffer.from("camada de aplicacao da fixture");
   const imageLayerDigest = digest(imageLayerBytes);
