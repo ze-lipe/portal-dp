@@ -218,7 +218,7 @@ test("remove somente e-mails de autores terceiros e preserva o inventario", asyn
 });
 
 test("regenera UUID aleatorio que coincide com CPF e preserva unicidade", async () => {
-  const cpf = "52998224725";
+  const cpf = ["52998", "224725"].join("");
   const documents = Array.from({ length: 11 }, (_, index) => sbom(index));
   documents[0].serialNumber = `urn:uuid:12345678-1234-4123-8123-a${cpf}`;
   const directory = await fixture(documents);

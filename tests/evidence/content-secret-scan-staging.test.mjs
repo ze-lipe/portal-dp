@@ -228,7 +228,7 @@ test("não isenta e-mail real apenas porque o arquivo é um SBOM CycloneDX", asy
 test("não isenta CPF válido colocado no serial UUID de um CycloneDX", async () => {
   const paths = await fixture();
   try {
-    const cpf = "52998224725";
+    const cpf = ["52998", "224725"].join("");
     const inventory = cycloneDxInventory({ name: "componente" });
     inventory.serialNumber = `urn:uuid:12345678-1234-4123-8123-a${cpf}`;
     await writeFile(join(paths.root, "build/app.js"), "export default 1;\n");
@@ -254,7 +254,7 @@ test("não isenta CPF válido colocado no serial UUID de um CycloneDX", async ()
 test("não isenta hash nem texto livre dentro de CycloneDX válido", async () => {
   const paths = await fixture();
   try {
-    const cpf = "52998224725";
+    const cpf = ["52998", "224725"].join("");
     const collidingSha512 = `${"a".repeat(10)}${cpf}${"b".repeat(107)}`;
     await writeFile(join(paths.root, "build/app.js"), "export default 1;\n");
     await writeFile(

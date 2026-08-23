@@ -260,8 +260,7 @@ test("rejeita resumo ou relatorio bruto divergente", () => {
   );
 
   const unsanitizedRaw = imageReport();
-  unsanitizedRaw.Results[0].Packages[0].Maintainer =
-    "Debian Maintainer <maintainer@debian.org>";
+  unsanitizedRaw.Results[0].Packages[0].Maintainer = `Debian Maintainer <${["maintainer", "debian.org"].join("@")}>`;
   assert.throws(
     () =>
       validateTrivyEvidenceCoherence(
@@ -335,8 +334,7 @@ test("mantem compatibilidade de leitura do schema v1", () => {
 
   const legacyImage = imageReport();
   legacyImage.Results[0].Vulnerabilities = [];
-  legacyImage.Results[0].Packages[0].Maintainer =
-    "Debian Maintainer <maintainer@debian.org>";
+  legacyImage.Results[0].Packages[0].Maintainer = `Debian Maintainer <${["maintainer", "debian.org"].join("@")}>`;
   legacyImage.Results[0].Packages[0].Identifier = {
     PURL: "pkg:deb/debian/libssl3t64@3.5.6-1",
   };

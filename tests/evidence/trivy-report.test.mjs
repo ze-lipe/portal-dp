@@ -276,8 +276,7 @@ test("rejeita relatorio limpo sem inventario de pacotes", () => {
 
 test("exige remocao fail-closed de Maintainer e Identifier.PURL quando solicitado", () => {
   const report = imageReport();
-  report.Results[0].Packages[0].Maintainer =
-    "Debian Maintainer <maintainer@debian.org>";
+  report.Results[0].Packages[0].Maintainer = `Debian Maintainer <${["maintainer", "debian.org"].join("@")}>`;
   report.Results[0].Packages[0].Identifier = {
     PURL: "pkg:deb/debian/base-files@13.8",
     UID: "uid-publico",

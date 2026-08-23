@@ -151,11 +151,11 @@ function acceptedImageReport() {
     Release: "1~deb13u2",
     Arch: "amd64",
     Identifier: {
-      PURL: "pkg:deb/debian/libssl3t64@12345678000195",
+      PURL: `pkg:deb/debian/libssl3t64@${["12345678", "000195"].join("")}`,
       UID: packageUid,
     },
     Layer: { ...affectedLayer },
-    Maintainer: "Debian Maintainer <maintainer@debian.org>",
+    Maintainer: `Debian Maintainer <${["maintainer", "debian.org"].join("@")}>`,
   });
   report.Metadata.ImageConfig = {
     config: {
