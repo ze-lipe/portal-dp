@@ -304,6 +304,7 @@ jobs:
           DOCKER_BUILD_RECORD_UPLOAD: "false"
           DOCKER_BUILD_SUMMARY: "false"
         with:
+          builder: ${{ steps.buildx.outputs.name }}
           context: .
           push: false
           provenance: mode=max,version=v1,builder-id=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -311,17 +312,44 @@ jobs:
           sbom: generator=docker.io/docker/buildkit-syft-scanner@sha256:79e7b013cbec16bbb436f312819a49a4a57752b2270c1a9332ae1a10fcc82a68
           tags: portal-dp:${{ github.sha }}
           platforms: linux/amd64
-          outputs: |
-            type=docker,name=portal-dp:${{ github.sha }}
-            type=oci,dest=/tmp/portal-dp.oci.tar
+          outputs: type=oci,dest=/tmp/portal-dp.oci.tar
+      - name: Carregar a imagem executavel vinculada ao artefato OCI
+        id: runtime-image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        env:
+          # A imagem local reutiliza a mesma construcao, mas sem anexos. O
+          # vinculo criptografico com o OCI e validado no passo seguinte.
+          BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
+          DOCKER_BUILD_SUMMARY: "false"
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          push: false
+          load: true
+          provenance: false
+          sbom: false
+          tags: portal-dp:${{ github.sha }}
+          platforms: linux/amd64
       - name: Vincular os scanners ao ImageID carregado localmente
         id: local-image
+        env:
+          OCI_BUILD_METADATA_JSON: ${{ steps.build.outputs.metadata }}
         shell: bash
         run: |
           set -euo pipefail
           image_id="$(docker image inspect \
             --format '{{.Id}}' "portal-dp:${GITHUB_SHA}")"
           [[ "$image_id" =~ ^sha256:[a-f0-9]{64}$ ]]
+          oci_config_id="$(node -e '
+            const metadata = JSON.parse(
+              process.env.OCI_BUILD_METADATA_JSON ?? ""
+            );
+            const value = metadata["containerimage.config.digest"];
+            if (!/^sha256:[a-f0-9]{64}$/.test(value ?? "")) process.exit(1);
+            process.stdout.write(value);
+          ')"
+          test "$image_id" = "$oci_config_id"
           printf 'image-id=%s\n' "$image_id" >> "$GITHUB_OUTPUT"
       - name: Smoke da API e do worker no mesmo artefato
         shell: bash
@@ -497,7 +525,7 @@ jobs:
         run: node scripts/write-trivy-scan-result.mjs
       - name: Trivy — segredos no filesystem e nas camadas da imagem real
         id: trivy-image-secrets
-        if: ${{ always() && steps.trivy-policy.outcome == 'success' && steps.build.outcome == 'success' }}
+        if: ${{ always() && steps.trivy-policy.outcome == 'success' && steps.build.outcome == 'success' && steps.runtime-image.outcome == 'success' }}
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
