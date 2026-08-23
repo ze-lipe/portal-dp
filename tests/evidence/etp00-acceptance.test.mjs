@@ -390,14 +390,18 @@ function artifactContent(name, gatCatalog) {
       ],
     },
     "oci-build-link.json": {
-      schemaVersion: 2,
+      schemaVersion: 3,
       builder: "docker/build-push-action",
       buildDigest: `sha256:${"a".repeat(64)}`,
+      ociImageManifestDigest: `sha256:${"e".repeat(64)}`,
+      runtimeManifestDigest: `sha256:${"d".repeat(64)}`,
       localImageId: `sha256:${"b".repeat(64)}`,
       ociArchiveSha256: fixtureOciArchiveSha256,
       metadata: {
         containerImageDigest: `sha256:${"a".repeat(64)}`,
         containerImageConfigDigest: `sha256:${"b".repeat(64)}`,
+        ociImageManifestDigest: `sha256:${"e".repeat(64)}`,
+        runtimeManifestDigest: `sha256:${"d".repeat(64)}`,
       },
       ociIndex: {
         digest: `sha256:${"c".repeat(64)}`,
@@ -406,6 +410,8 @@ function artifactContent(name, gatCatalog) {
         imageLayerCount: 1,
         allImageLayerBlobsVerified: true,
         buildDigestLinked: true,
+        ociImageManifestLinked: true,
+        runtimeConfigLinked: true,
         configDigestLinked: true,
         linkage: "DESCRIPTOR_GRAPH",
         linkedMediaType: "application/vnd.oci.image.manifest.v1+json",

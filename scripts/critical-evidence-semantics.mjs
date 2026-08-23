@@ -412,13 +412,17 @@ export async function validateCriticalEvidenceSemantics(
         "localImageId",
         "metadata",
         "ociArchiveSha256",
+        "ociImageManifestDigest",
         "ociIndex",
+        "runtimeManifestDigest",
         "sanitization",
         "schemaVersion",
       ];
       const expectedMetadataKeys = [
         "containerImageConfigDigest",
         "containerImageDigest",
+        "ociImageManifestDigest",
+        "runtimeManifestDigest",
       ];
       const expectedIndexKeys = [
         "attestationDescriptorCount",
@@ -431,11 +435,15 @@ export async function validateCriticalEvidenceSemantics(
         "linkage",
         "linkedMediaType",
         "manifestCount",
+        "ociImageManifestLinked",
+        "runtimeConfigLinked",
       ];
       if (
-        report.schemaVersion !== 2 ||
+        report.schemaVersion !== 3 ||
         report.builder !== "docker/build-push-action" ||
         !/^sha256:[a-f0-9]{64}$/u.test(report.buildDigest ?? "") ||
+        !/^sha256:[a-f0-9]{64}$/u.test(report.ociImageManifestDigest ?? "") ||
+        !/^sha256:[a-f0-9]{64}$/u.test(report.runtimeManifestDigest ?? "") ||
         !/^sha256:[a-f0-9]{64}$/u.test(report.localImageId ?? "") ||
         !/^[a-f0-9]{64}$/u.test(report.ociArchiveSha256 ?? "") ||
         (ociArchive !== null &&
@@ -446,6 +454,10 @@ export async function validateCriticalEvidenceSemantics(
           JSON.stringify([...expectedMetadataKeys].sort()) ||
         report.metadata?.containerImageDigest !== report.buildDigest ||
         report.metadata?.containerImageConfigDigest !== report.localImageId ||
+        report.metadata?.ociImageManifestDigest !==
+          report.ociImageManifestDigest ||
+        report.metadata?.runtimeManifestDigest !==
+          report.runtimeManifestDigest ||
         JSON.stringify(Object.keys(report.ociIndex ?? {}).sort()) !==
           JSON.stringify([...expectedIndexKeys].sort()) ||
         !/^sha256:[a-f0-9]{64}$/u.test(report.ociIndex?.digest ?? "") ||
@@ -457,6 +469,8 @@ export async function validateCriticalEvidenceSemantics(
         report.ociIndex.imageLayerCount < 1 ||
         report.ociIndex.allImageLayerBlobsVerified !== true ||
         report.ociIndex.buildDigestLinked !== true ||
+        report.ociIndex.ociImageManifestLinked !== true ||
+        report.ociIndex.runtimeConfigLinked !== true ||
         report.ociIndex.configDigestLinked !== true ||
         !["INDEX_ROOT", "DESCRIPTOR_GRAPH"].includes(report.ociIndex.linkage) ||
         typeof report.ociIndex.linkedMediaType !== "string" ||

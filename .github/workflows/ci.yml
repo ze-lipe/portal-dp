@@ -334,22 +334,20 @@ jobs:
       - name: Vincular os scanners ao ImageID carregado localmente
         id: local-image
         env:
+          OCI_BUILD_DIGEST: ${{ steps.build.outputs.digest }}
           OCI_BUILD_METADATA_JSON: ${{ steps.build.outputs.metadata }}
+          OCI_EXPECTED_BUILDER_ID: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OCI_RUNTIME_DIGEST: ${{ steps.runtime-image.outputs.digest }}
+          OCI_RUNTIME_IMAGE_ID: ${{ steps.runtime-image.outputs.imageid }}
+          OCI_RUNTIME_METADATA_JSON: ${{ steps.runtime-image.outputs.metadata }}
         shell: bash
         run: |
           set -euo pipefail
           image_id="$(docker image inspect \
             --format '{{.Id}}' "portal-dp:${GITHUB_SHA}")"
           [[ "$image_id" =~ ^sha256:[a-f0-9]{64}$ ]]
-          oci_config_id="$(node -e '
-            const metadata = JSON.parse(
-              process.env.OCI_BUILD_METADATA_JSON ?? ""
-            );
-            const value = metadata["containerimage.config.digest"];
-            if (!/^sha256:[a-f0-9]{64}$/.test(value ?? "")) process.exit(1);
-            process.stdout.write(value);
-          ')"
-          test "$image_id" = "$oci_config_id"
+          export OCI_LOCAL_IMAGE_ID="$image_id"
+          node scripts/write-oci-build-evidence.mjs /tmp/portal-dp.oci.tar
           printf 'image-id=%s\n' "$image_id" >> "$GITHUB_OUTPUT"
       - name: Smoke da API e do worker no mesmo artefato
         shell: bash
@@ -550,18 +548,10 @@ jobs:
           IMAGE_SECRET_SCAN_OUTPUT_PATH: evidencias/resumos-seguranca/image-secret-scan-result.json
         run: node scripts/write-image-secret-scan-result.mjs
       - name: Registrar digest do mesmo artefato
-        env:
-          OCI_BUILD_DIGEST: ${{ steps.build.outputs.digest }}
-          OCI_BUILD_METADATA_JSON: ${{ steps.build.outputs.metadata }}
-          OCI_EXPECTED_BUILDER_ID: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           cp /tmp/portal-dp.oci.tar evidencias/artefatos/portal-dp.oci.tar
           sha256sum evidencias/artefatos/portal-dp.oci.tar \
             | tee evidencias/resultados/portal-dp.oci.sha256
-          export OCI_LOCAL_IMAGE_ID="$(docker image inspect \
-            --format '{{.Id}}' "portal-dp:${GITHUB_SHA}")"
-          node scripts/write-oci-build-evidence.mjs \
-            evidencias/artefatos/portal-dp.oci.tar
       - name: Varrer artefatos e evidencias OCI antes de publica-los
         id: oci-evidence-secret-scan
         if: ${{ always() }}

@@ -140,6 +140,47 @@ function fixture() {
   return { buildDigest, localImageId, indexBytes, blobs };
 }
 
+function wrapInOciResultIndex(value) {
+  const runtimeImageDigest = value.buildDigest;
+  const resultIndexBytes = value.indexBytes;
+  const resultIndexDigest = digest(resultIndexBytes);
+  value.blobs.set(resultIndexDigest, resultIndexBytes);
+  value.indexBytes = jsonBytes({
+    schemaVersion: 2,
+    mediaType: "application/vnd.oci.image.index.v1+json",
+    manifests: [
+      {
+        mediaType: "application/vnd.oci.image.index.v1+json",
+        digest: resultIndexDigest,
+        size: resultIndexBytes.length,
+      },
+    ],
+  });
+  value.buildDigest = resultIndexDigest;
+  value.runtimeImageDigest = runtimeImageDigest;
+  return value;
+}
+
+function addSecondExecutableManifest(value) {
+  const index = JSON.parse(value.indexBytes.toString("utf8"));
+  const primaryDescriptor = index.manifests.find(
+    (descriptor) => descriptor.platform?.os === "linux",
+  );
+  const secondManifest = JSON.parse(
+    value.blobs.get(primaryDescriptor.digest).toString("utf8"),
+  );
+  secondManifest.annotations = { fixture: "segundo-manifesto" };
+  const secondManifestBytes = jsonBytes(secondManifest);
+  const secondManifestDigest = digest(secondManifestBytes);
+  value.blobs.set(secondManifestDigest, secondManifestBytes);
+  index.manifests.splice(1, 0, {
+    ...primaryDescriptor,
+    digest: secondManifestDigest,
+    size: secondManifestBytes.length,
+  });
+  value.indexBytes = jsonBytes(index);
+}
+
 function mutateAttestation(value, targetPredicateType, mutate) {
   const index = JSON.parse(value.indexBytes.toString("utf8"));
   const attestationDescriptor = index.manifests.find(
@@ -200,6 +241,7 @@ function mutateAttestationManifest(value, mutate) {
 }
 
 async function buildFixtureReport(value, overrides = {}) {
+  const runtimeImageDigest = value.runtimeImageDigest ?? value.buildDigest;
   return createOciBuildEvidence({
     buildDigest: value.buildDigest,
     localImageId: value.localImageId,
@@ -209,6 +251,12 @@ async function buildFixtureReport(value, overrides = {}) {
       "containerimage.digest": value.buildDigest,
       "containerimage.config.digest": value.localImageId,
       "buildx.build.provenance": { sensitive: "CANARIO_NAO_PERSISTIR" },
+    },
+    runtimeImageDigest,
+    runtimeImageId: value.localImageId,
+    runtimeMetadata: {
+      "containerimage.digest": runtimeImageDigest,
+      "containerimage.config.digest": value.localImageId,
     },
     indexBytes: value.indexBytes,
     readBlob: async (blobDigest) => value.blobs.get(blobDigest),
@@ -222,8 +270,12 @@ async function buildReport(overrides = {}) {
 
 test("vincula Buildx, imagem local e grafo OCI sem persistir metadados brutos", async () => {
   const report = await buildReport();
-  assert.equal(report.schemaVersion, 2);
+  assert.equal(report.schemaVersion, 3);
+  assert.equal(report.ociImageManifestDigest, report.buildDigest);
+  assert.equal(report.runtimeManifestDigest, report.buildDigest);
   assert.equal(report.ociIndex.buildDigestLinked, true);
+  assert.equal(report.ociIndex.ociImageManifestLinked, true);
+  assert.equal(report.ociIndex.runtimeConfigLinked, true);
   assert.equal(report.ociIndex.configDigestLinked, true);
   assert.equal(report.ociIndex.linkage, "DESCRIPTOR_GRAPH");
   assert.equal(report.ociIndex.attestationDescriptorCount, 1);
@@ -238,7 +290,47 @@ test("vincula Buildx, imagem local e grafo OCI sem persistir metadados brutos", 
   assert.deepEqual(Object.keys(report.metadata).sort(), [
     "containerImageConfigDigest",
     "containerImageDigest",
+    "ociImageManifestDigest",
+    "runtimeManifestDigest",
   ]);
+});
+
+test("aceita metadata OCI sem config quando o grafo e o runtime comprovam o vinculo", async () => {
+  const value = fixture();
+  const report = await buildFixtureReport(value, {
+    metadata: {
+      "containerimage.digest": value.buildDigest,
+    },
+  });
+  assert.equal(report.localImageId, value.localImageId);
+  assert.equal(report.ociIndex.runtimeConfigLinked, true);
+});
+
+test("vincula layout OCI real com indice externo, resultado e manifesto runtime", async () => {
+  const value = wrapInOciResultIndex(fixture());
+  const report = await buildFixtureReport(value, {
+    metadata: {
+      "containerimage.digest": value.buildDigest,
+    },
+  });
+  assert.notEqual(report.ociIndex.digest, report.buildDigest);
+  assert.notEqual(report.buildDigest, report.ociImageManifestDigest);
+  assert.equal(report.ociImageManifestDigest, value.runtimeImageDigest);
+  assert.equal(report.ociIndex.ociImageManifestLinked, true);
+});
+
+test("rejeita dois manifestos OCI executaveis vinculados ao mesmo config", async () => {
+  const value = fixture();
+  addSecondExecutableManifest(value);
+  wrapInOciResultIndex(value);
+  await assert.rejects(
+    buildFixtureReport(value, {
+      metadata: {
+        "containerimage.digest": value.buildDigest,
+      },
+    }),
+    /nao possui um unico manifesto executavel vinculado ao config local/u,
+  );
 });
 
 test("rejeita metadata do Buildx independente do digest declarado", async () => {
@@ -258,6 +350,60 @@ test("rejeita chamada sem expectedBuilderId explicito", async () => {
     buildReport({ expectedBuilderId: undefined }),
     /expectedBuilderId deve ser uma string nao vazia/u,
   );
+});
+
+test("rejeita chamada sem o digest do manifesto executavel", async () => {
+  await assert.rejects(
+    buildReport({ runtimeImageDigest: undefined }),
+    /runtimeImageDigest deve ser um digest SHA-256 valido/u,
+  );
+});
+
+test("rejeita ImageID do Buildx diferente da imagem carregada", async () => {
+  await assert.rejects(
+    buildReport({ runtimeImageId: `sha256:${"f".repeat(64)}` }),
+    /ImageID do Buildx diverge da imagem local/u,
+  );
+});
+
+test("rejeita metadata runtime com config diferente do ImageID", async () => {
+  const value = fixture();
+  await assert.rejects(
+    buildFixtureReport(value, {
+      runtimeMetadata: {
+        "containerimage.digest": value.buildDigest,
+        "containerimage.config.digest": `sha256:${"f".repeat(64)}`,
+      },
+    }),
+    /config digest da imagem executavel diverge da imagem local/u,
+  );
+});
+
+test("rejeita metadata runtime com manifesto diferente do output", async () => {
+  const value = fixture();
+  await assert.rejects(
+    buildFixtureReport(value, {
+      runtimeMetadata: {
+        "containerimage.digest": `sha256:${"f".repeat(64)}`,
+        "containerimage.config.digest": value.localImageId,
+      },
+    }),
+    /digest da imagem executavel diverge do metadata do Buildx/u,
+  );
+});
+
+test("aceita manifesto runtime com media type e digest diferentes do OCI", async () => {
+  const runtimeImageDigest = `sha256:${"f".repeat(64)}`;
+  const report = await buildReport({
+    runtimeImageDigest,
+    runtimeMetadata: {
+      "containerimage.digest": runtimeImageDigest,
+      "containerimage.config.digest": fixture().localImageId,
+    },
+  });
+  assert.equal(report.runtimeManifestDigest, runtimeImageDigest);
+  assert.notEqual(report.runtimeManifestDigest, report.ociImageManifestDigest);
+  assert.equal(report.ociIndex.runtimeConfigLinked, true);
 });
 
 test("rejeita builder id diferente do valor esperado", async () => {
@@ -282,6 +428,12 @@ test("rejeita imagem local que nao e config alcancavel do build", async () => {
       ociArchiveSha256: "e".repeat(64),
       expectedBuilderId,
       metadata: {
+        "containerimage.digest": value.buildDigest,
+        "containerimage.config.digest": unrelatedDigest,
+      },
+      runtimeImageDigest: value.buildDigest,
+      runtimeImageId: unrelatedDigest,
+      runtimeMetadata: {
         "containerimage.digest": value.buildDigest,
         "containerimage.config.digest": unrelatedDigest,
       },
@@ -354,6 +506,12 @@ test("rejeita arquivo OCI sem o payload de uma camada da imagem", async () => {
       ociArchiveSha256: "b".repeat(64),
       expectedBuilderId,
       metadata: {
+        "containerimage.digest": value.buildDigest,
+        "containerimage.config.digest": value.localImageId,
+      },
+      runtimeImageDigest: value.buildDigest,
+      runtimeImageId: value.localImageId,
+      runtimeMetadata: {
         "containerimage.digest": value.buildDigest,
         "containerimage.config.digest": value.localImageId,
       },
@@ -474,6 +632,12 @@ test("rejeita buildDigest que nao pertence ao grafo OCI", async () => {
       expectedBuilderId,
       metadata: {
         "containerimage.digest": outsideDigest,
+        "containerimage.config.digest": value.localImageId,
+      },
+      runtimeImageDigest: value.buildDigest,
+      runtimeImageId: value.localImageId,
+      runtimeMetadata: {
+        "containerimage.digest": value.buildDigest,
         "containerimage.config.digest": value.localImageId,
       },
       indexBytes: value.indexBytes,

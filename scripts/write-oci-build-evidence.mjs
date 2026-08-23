@@ -210,13 +210,21 @@ export async function createOciBuildEvidence({
   ociArchiveSha256,
   expectedBuilderId,
   metadata,
+  runtimeImageDigest,
+  runtimeImageId,
+  runtimeMetadata,
   indexBytes,
   readBlob,
   verifyBlob,
 }) {
   assertDigest(buildDigest, "buildDigest");
   assertDigest(localImageId, "localImageId");
+  assertDigest(runtimeImageDigest, "runtimeImageDigest");
+  assertDigest(runtimeImageId, "runtimeImageId");
   assertExpectedBuilderId(expectedBuilderId);
+  if (runtimeImageId !== localImageId) {
+    throw new Error("ImageID do Buildx diverge da imagem local");
+  }
   if (!/^[a-f0-9]{64}$/u.test(ociArchiveSha256 ?? "")) {
     throw new Error("ociArchiveSha256 deve ser um SHA-256 valido");
   }
@@ -226,8 +234,26 @@ export async function createOciBuildEvidence({
   if (metadata["containerimage.digest"] !== buildDigest) {
     throw new Error("digest informado pelo Buildx diverge do buildDigest");
   }
-  if (metadata["containerimage.config.digest"] !== localImageId) {
+  const buildConfigDigest = metadata["containerimage.config.digest"];
+  if (buildConfigDigest !== undefined && buildConfigDigest !== localImageId) {
     throw new Error("config digest do Buildx diverge da imagem local");
+  }
+  if (
+    !runtimeMetadata ||
+    typeof runtimeMetadata !== "object" ||
+    Array.isArray(runtimeMetadata)
+  ) {
+    throw new Error("metadata da imagem executavel deve ser um objeto JSON");
+  }
+  if (runtimeMetadata["containerimage.digest"] !== runtimeImageDigest) {
+    throw new Error(
+      "digest da imagem executavel diverge do metadata do Buildx",
+    );
+  }
+  if (runtimeMetadata["containerimage.config.digest"] !== runtimeImageId) {
+    throw new Error(
+      "config digest da imagem executavel diverge da imagem local",
+    );
   }
   if (!Buffer.isBuffer(indexBytes) || indexBytes.length === 0) {
     throw new Error("index.json do arquivo OCI nao foi informado");
@@ -430,14 +456,20 @@ export async function createOciBuildEvidence({
       "buildDigest nao possui camada de imagem verificavel no arquivo OCI",
     );
   }
-  const imageManifestDigest = [...configNode.parentDigests].find(
+  const imageManifestDigests = [...configNode.parentDigests].filter(
     (digest) =>
       buildReachable.has(digest) && !attestationDescriptorDigests.has(digest),
   );
-  const linkedPredicates = predicatesByReference.get(imageManifestDigest);
+  if (imageManifestDigests.length !== 1) {
+    throw new Error(
+      "artefato OCI nao possui um unico manifesto executavel vinculado ao config local",
+    );
+  }
+  const ociImageManifestDigest = imageManifestDigests[0];
+  const linkedPredicates = predicatesByReference.get(ociImageManifestDigest);
   const provenanceLinked = linkedPredicates?.has(slsaProvenanceV1) ?? false;
   const sbomLinked = linkedPredicates?.has(spdxDocumentPredicate) ?? false;
-  if (!imageManifestDigest || !provenanceLinked || !sbomLinked) {
+  if (!provenanceLinked || !sbomLinked) {
     throw new Error(
       "arquivo OCI nao comprova provenance e SBOM vinculados a imagem",
     );
@@ -445,14 +477,18 @@ export async function createOciBuildEvidence({
 
   const buildDescriptor = graph.get(buildDigest);
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     builder: "docker/build-push-action",
     buildDigest,
+    ociImageManifestDigest,
+    runtimeManifestDigest: runtimeImageDigest,
     localImageId,
     ociArchiveSha256,
     metadata: {
       containerImageDigest: buildDigest,
       containerImageConfigDigest: localImageId,
+      ociImageManifestDigest,
+      runtimeManifestDigest: runtimeImageDigest,
     },
     ociIndex: {
       digest: indexDigest,
@@ -461,6 +497,8 @@ export async function createOciBuildEvidence({
       imageLayerCount: verifiedBuildLayerDigests.length,
       allImageLayerBlobsVerified: true,
       buildDigestLinked: true,
+      ociImageManifestLinked: true,
+      runtimeConfigLinked: true,
       configDigestLinked: true,
       linkage: indexDigest === buildDigest ? "INDEX_ROOT" : "DESCRIPTOR_GRAPH",
       linkedMediaType:
@@ -525,6 +563,12 @@ async function main() {
     expectedBuilderId: process.env.OCI_EXPECTED_BUILDER_ID,
     ociArchiveSha256: await hashFile(archivePath),
     metadata,
+    runtimeImageDigest: process.env.OCI_RUNTIME_DIGEST,
+    runtimeImageId: process.env.OCI_RUNTIME_IMAGE_ID,
+    runtimeMetadata: parseJson(
+      Buffer.from(process.env.OCI_RUNTIME_METADATA_JSON ?? "", "utf8"),
+      "metadata da imagem executavel",
+    ),
     indexBytes: archiveEntry(archivePath, "index.json"),
     readBlob: async (digest) =>
       archiveEntry(archivePath, `blobs/sha256/${digest.slice(7)}`),
