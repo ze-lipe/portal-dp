@@ -92,7 +92,7 @@ async function readScopeProof() {
     const proof = await readFile(scopeProofPath, "utf8");
     const escapedScopes = expectedScopes.join(",");
     const match = new RegExp(
-      `^scopes=${escapedScopes}\\r?\\nscopeStats=([^\\r\\n]+)\\r?\\nfileCount=([1-9][0-9]*)\\r?\\nbyteCount=([1-9][0-9]*)\\r?\\naggregateSha256=([a-f0-9]{64})\\r?\\nprohibitedDataPolicy=PORTAL_DP_PROHIBITED_DATA_V2\\r?\\nprohibitedDataArchiveInspection=FAIL_CLOSED_TAR_ZIP_OCI_V1\\r?\\nprohibitedDataArchiveMaxDepth=4\\r?\\nprohibitedDataArchiveMaxEntries=50000\\r?\\nprohibitedDataArchiveMaxEntryBytes=268435456\\r?\\nprohibitedDataArchiveMaxExpandedBytes=2147483648\\r?\\nprohibitedDataArchiveMaxCompressionRatio=200\\r?\\nprohibitedDataArchiveEntryCount=(0|[1-9][0-9]*)\\r?\\nprohibitedDataExpandedByteCount=(0|[1-9][0-9]*)\\r?\\nprohibitedDataFindingCount=(0|[1-9][0-9]*)\\r?\\n?$`,
+      `^scopes=${escapedScopes}\\r?\\nscopeStats=([^\\r\\n]+)\\r?\\nfileCount=([1-9][0-9]*)\\r?\\nbyteCount=([1-9][0-9]*)\\r?\\naggregateSha256=([a-f0-9]{64})\\r?\\nprohibitedDataPolicy=PORTAL_DP_PROHIBITED_DATA_V3\\r?\\nprohibitedDataArchiveInspection=FAIL_CLOSED_TAR_ZIP_OCI_V2\\r?\\nprohibitedDataArchiveMaxDepth=4\\r?\\nprohibitedDataArchiveMaxEntries=50000\\r?\\nprohibitedDataArchiveMaxEntryBytes=268435456\\r?\\nprohibitedDataArchiveMaxExpandedBytes=2147483648\\r?\\nprohibitedDataArchiveMaxCompressionRatio=200\\r?\\nprohibitedDataArchiveEntryCount=(0|[1-9][0-9]*)\\r?\\nprohibitedDataExpandedByteCount=(0|[1-9][0-9]*)\\r?\\nprohibitedDataFindingCount=(0|[1-9][0-9]*)\\r?\\n?$`,
       "u",
     ).exec(proof);
     if (!match) return null;
@@ -255,8 +255,8 @@ const report = {
   fileCount: scopeProof?.fileCount ?? null,
   byteCount: scopeProof?.byteCount ?? null,
   aggregateSha256: scopeProof?.aggregateSha256 ?? null,
-  prohibitedDataPolicy: "PORTAL_DP_PROHIBITED_DATA_V2",
-  prohibitedDataArchiveInspection: "FAIL_CLOSED_TAR_ZIP_OCI_V1",
+  prohibitedDataPolicy: "PORTAL_DP_PROHIBITED_DATA_V3",
+  prohibitedDataArchiveInspection: "FAIL_CLOSED_TAR_ZIP_OCI_V2",
   prohibitedDataArchiveMaxDepth: 4,
   prohibitedDataArchiveMaxEntries: 50_000,
   prohibitedDataArchiveMaxEntryBytes: 268_435_456,

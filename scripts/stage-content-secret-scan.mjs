@@ -25,7 +25,7 @@ const supportedScopes = new Set([
   "SEALED_EVIDENCE",
   "TEST_FIXTURES",
 ]);
-const policyVersion = "PORTAL_DP_PROHIBITED_DATA_V2";
+const policyVersion = "PORTAL_DP_PROHIBITED_DATA_V3";
 
 function argument(name) {
   const index = process.argv.indexOf(`--${name}`);

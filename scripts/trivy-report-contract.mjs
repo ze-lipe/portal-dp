@@ -1,6 +1,11 @@
 const scopes = new Set(["image", "config"]);
 const stepOutcomes = new Set(["success", "failure", "cancelled", "skipped"]);
-const summaryOutcomes = new Set(["success", "findings", "operational_failure"]);
+const summaryOutcomes = new Set([
+  "success",
+  "success_with_accepted_risk",
+  "findings",
+  "operational_failure",
+]);
 const digestPattern = /^sha256:[a-f0-9]{64}$/u;
 const uuidV7Pattern =
   /^[a-f0-9]{8}-[a-f0-9]{4}-7[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u;
@@ -16,6 +21,54 @@ export const TRIVY_REPORT_CONTRACT = Object.freeze({
   imageResultClasses: Object.freeze(["os-pkgs", "lang-pkgs"]),
   configResultClass: "config",
   requiredConfigType: "dockerfile",
+});
+
+const acceptedBaseImageName = "gcr.io/distroless/nodejs24-debian13:nonroot";
+const acceptedBaseImageDigest =
+  "sha256:ffab599740d4aaa66029d02b9e6d3de4f622fefb7410081c5ef69c86430f364d";
+const acceptedDockerfileFrontend =
+  "docker/dockerfile:1.7.1@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e";
+
+/**
+ * Excecao de risco temporaria, imutavel e deliberadamente estreita. Ela nao
+ * altera a configuracao do Trivy: o scanner continua falhando e exibindo o
+ * achado; somente a classificacao posterior pode aprovar esta ocorrencia.
+ */
+export const TRIVY_TEMPORARY_RISK_ACCEPTANCE = Object.freeze({
+  id: "RA-TRIVY-CVE-2026-14456-001",
+  vulnerabilityId: "CVE-2026-14456",
+  packageName: "libssl3t64",
+  installedVersion: "3.5.6-1~deb13u2",
+  inventoryVersion: "3.5.6",
+  inventoryRelease: "1~deb13u2",
+  inventoryArchitecture: "amd64",
+  affectedLayer: Object.freeze({
+    digest:
+      "sha256:cf397222899a3b6b98c35941fd44d79f8ff61303349b3bece21b49dacc1ac106",
+    diffId:
+      "sha256:80bb2aedf42cbf9911cb9073be23406c0e7f799f8083bf13a1cd2d460a25e383",
+  }),
+  severity: "HIGH",
+  status: "fix_deferred",
+  resultClass: "os-pkgs",
+  targetType: "debian",
+  maximumOccurrences: 1,
+  fixedVersionPolicy: "ABSENT_NULL_OR_EMPTY",
+  baseImage: Object.freeze({
+    name: acceptedBaseImageName,
+    digest: acceptedBaseImageDigest,
+    reference: `${acceptedBaseImageName}@${acceptedBaseImageDigest}`,
+  }),
+  approvalDate: "2026-08-23",
+  approvedAt: "2026-08-23T00:59:42-03:00",
+  validFrom: "2026-08-23T00:59:42-03:00",
+  expiresAt: "2026-09-21T23:59:59-03:00",
+  approvedBy: Object.freeze({
+    name: "Jose Felipe Leite Marques",
+    role: "Desenvolvedor",
+  }),
+  justification:
+    "A aplicacao Nest/Node utiliza HTTP e nao instancia servidor ou listener OpenSSL QUIC; a vulnerabilidade exige o processamento de pacotes QUIC Initial por esse listener.",
 });
 
 function isObject(value) {
@@ -47,6 +100,151 @@ function assertDigest(value, message) {
   if (typeof value !== "string" || !digestPattern.test(value)) {
     throw new Error(message);
   }
+}
+
+function assertTimestamp(value, message) {
+  if (
+    typeof value !== "string" ||
+    !rfc3339Pattern.test(value) ||
+    !Number.isFinite(Date.parse(value))
+  ) {
+    throw new Error(message);
+  }
+}
+
+function isWithinTemporaryAcceptanceWindow(evaluatedAt) {
+  const instant = Date.parse(evaluatedAt);
+  return (
+    instant >= Date.parse(TRIVY_TEMPORARY_RISK_ACCEPTANCE.validFrom) &&
+    instant <= Date.parse(TRIVY_TEMPORARY_RISK_ACCEPTANCE.expiresAt)
+  );
+}
+
+export function temporaryRiskAcceptanceEvidence() {
+  const policy = TRIVY_TEMPORARY_RISK_ACCEPTANCE;
+  return {
+    id: policy.id,
+    vulnerabilityId: policy.vulnerabilityId,
+    packageName: policy.packageName,
+    installedVersion: policy.installedVersion,
+    inventoryVersion: policy.inventoryVersion,
+    inventoryRelease: policy.inventoryRelease,
+    inventoryArchitecture: policy.inventoryArchitecture,
+    affectedLayer: { ...policy.affectedLayer },
+    severity: policy.severity,
+    status: policy.status,
+    resultClass: policy.resultClass,
+    targetType: policy.targetType,
+    maximumOccurrences: policy.maximumOccurrences,
+    fixedVersionPolicy: policy.fixedVersionPolicy,
+    baseImage: { ...policy.baseImage },
+    approvalDate: policy.approvalDate,
+    approvedAt: policy.approvedAt,
+    validFrom: policy.validFrom,
+    expiresAt: policy.expiresAt,
+    approvedBy: { ...policy.approvedBy },
+    justification: policy.justification,
+    observedOccurrenceCount: 1,
+  };
+}
+
+/**
+ * Valida a prova minima produzida pelo build OCI antes de permitir que uma
+ * finding seja enquadrada na excecao temporaria. A igualdade do localImageId
+ * vincula essa prova ao mesmo ImageID efetivamente examinado pelo Trivy.
+ */
+export function validateTrivyOciBuildEvidence(
+  evidence,
+  { expectedImageId } = {},
+) {
+  assertObject(evidence, "a prova OCI do Trivy deve ser um objeto JSON");
+  assertDigest(
+    expectedImageId,
+    "a prova OCI do Trivy exige um ImageID esperado valido",
+  );
+  if (
+    evidence.schemaVersion !== 4 ||
+    evidence.builder !== "docker/build-push-action"
+  ) {
+    throw new Error("a prova OCI do Trivy nao usa o schema 4 esperado");
+  }
+  for (const [field, message] of [
+    ["buildDigest", "buildDigest OCI invalido"],
+    ["ociImageManifestDigest", "manifesto OCI invalido"],
+    ["runtimeManifestDigest", "manifesto runtime invalido"],
+    ["localImageId", "ImageID local OCI invalido"],
+  ]) {
+    assertDigest(evidence[field], message);
+  }
+  if (evidence.localImageId !== expectedImageId) {
+    throw new Error("a prova OCI nao corresponde ao ImageID examinado");
+  }
+  if (
+    evidence.runtimeBase !==
+      TRIVY_TEMPORARY_RISK_ACCEPTANCE.baseImage.reference ||
+    evidence.dockerfileFrontend !== acceptedDockerfileFrontend ||
+    evidence.dockerfileSourceLinked !== true ||
+    evidence.dockerfileFrontendLinked !== true ||
+    evidence.provenanceDependencyLinked !== true ||
+    evidence.runtimeBaseLabelLinked !== true
+  ) {
+    throw new Error("a prova OCI nao comprova a base e o Dockerfile esperados");
+  }
+  if (
+    typeof evidence.dockerfileSha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(evidence.dockerfileSha256) ||
+    typeof evidence.ociArchiveSha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(evidence.ociArchiveSha256)
+  ) {
+    throw new Error("a prova OCI possui hash de origem invalido");
+  }
+
+  assertObject(evidence.metadata, "a prova OCI nao possui metadata vinculada");
+  if (
+    evidence.metadata.containerImageDigest !== evidence.buildDigest ||
+    evidence.metadata.containerImageConfigDigest !== evidence.localImageId ||
+    evidence.metadata.ociImageManifestDigest !==
+      evidence.ociImageManifestDigest ||
+    evidence.metadata.runtimeManifestDigest !== evidence.runtimeManifestDigest
+  ) {
+    throw new Error("a prova OCI possui metadata divergente");
+  }
+
+  assertObject(evidence.ociIndex, "a prova OCI nao possui indice vinculado");
+  assertDigest(evidence.ociIndex.digest, "o indice da prova OCI e invalido");
+  if (
+    !Number.isSafeInteger(evidence.ociIndex.manifestCount) ||
+    evidence.ociIndex.manifestCount < 1 ||
+    !Number.isSafeInteger(evidence.ociIndex.attestationDescriptorCount) ||
+    evidence.ociIndex.attestationDescriptorCount < 1 ||
+    !Number.isSafeInteger(evidence.ociIndex.imageLayerCount) ||
+    evidence.ociIndex.imageLayerCount < 1 ||
+    evidence.ociIndex.allImageLayerBlobsVerified !== true ||
+    evidence.ociIndex.buildDigestLinked !== true ||
+    evidence.ociIndex.ociImageManifestLinked !== true ||
+    evidence.ociIndex.runtimeConfigLinked !== true ||
+    evidence.ociIndex.configDigestLinked !== true ||
+    !["INDEX_ROOT", "DESCRIPTOR_GRAPH"].includes(evidence.ociIndex.linkage)
+  ) {
+    throw new Error("a prova OCI nao comprova o grafo da imagem");
+  }
+  assertObject(
+    evidence.ociIndex.attestations,
+    "a prova OCI nao possui attestations vinculadas",
+  );
+  if (
+    evidence.ociIndex.attestations.referenceLinked !== true ||
+    evidence.ociIndex.attestations.provenanceLinked !== true ||
+    evidence.ociIndex.attestations.sbomLinked !== true
+  ) {
+    throw new Error("a prova OCI nao comprova provenance e SBOM vinculados");
+  }
+  return {
+    schemaVersion: 4,
+    imageId: evidence.localImageId,
+    runtimeBase: evidence.runtimeBase,
+    approved: true,
+  };
 }
 
 function optionalArray(result, field, label) {
@@ -177,10 +375,12 @@ function validateImageMetadata(metadata, label, expectedArtifactName, imageId) {
   }
 }
 
-function validateImageResults(report, label) {
+function validateImageResults(report, label, requireSanitizedPackageMetadata) {
   let coverage = 0;
   let packageCount = 0;
   let findingCount = 0;
+  const findings = [];
+  let packageMetadataSanitized = true;
   for (const result of report.Results) {
     assertObject(result, `${label} possui resultado invalido`);
     assertExactKeys(
@@ -198,19 +398,144 @@ function validateImageResults(report, label) {
     if (packages.some((item) => !isObject(item))) {
       throw new Error(`${label} possui inventario de pacotes malformado`);
     }
+    for (const packageEntry of packages) {
+      if (Object.hasOwn(packageEntry, "Maintainer")) {
+        packageMetadataSanitized = false;
+      }
+      if (Object.hasOwn(packageEntry, "Identifier")) {
+        if (!isObject(packageEntry.Identifier)) {
+          if (requireSanitizedPackageMetadata) {
+            throw new Error(`${label} possui Identifier de pacote malformado`);
+          }
+        } else if (Object.hasOwn(packageEntry.Identifier, "PURL")) {
+          packageMetadataSanitized = false;
+        }
+      }
+    }
     packageCount += packages.length;
     const vulnerabilities = optionalArray(result, "Vulnerabilities", label);
     if (vulnerabilities.some((item) => !isObject(item))) {
       throw new Error(`${label} possui achado de vulnerabilidade malformado`);
     }
     findingCount += vulnerabilities.length;
+    findings.push(
+      ...vulnerabilities.map((finding) => ({
+        finding,
+        packages,
+        resultClass: result.Class,
+        targetType: result.Type,
+      })),
+    );
   }
   if (coverage === 0 || packageCount === 0) {
     throw new Error(
       `${label} nao comprova inventario e cobertura do scanner vuln`,
     );
   }
-  return { targetCount: coverage, packageCount, findingCount };
+  if (requireSanitizedPackageMetadata && !packageMetadataSanitized) {
+    throw new Error(
+      `${label} ainda contem Maintainer ou Identifier.PURL de pacote`,
+    );
+  }
+  return {
+    targetCount: coverage,
+    packageCount,
+    findingCount,
+    findings,
+    packageMetadataSanitized,
+  };
+}
+
+function imageBaseReference(metadata) {
+  const labels = metadata?.ImageConfig?.config?.Labels;
+  if (!isObject(labels)) return null;
+  const value = labels["org.opencontainers.image.base.name"];
+  return typeof value === "string" ? value : null;
+}
+
+function hasAllowedFixedVersion(finding) {
+  return (
+    !Object.hasOwn(finding, "FixedVersion") ||
+    finding.FixedVersion === null ||
+    finding.FixedVersion === ""
+  );
+}
+
+function hasExactAffectedPackage(candidate, policy) {
+  const expectedId = `${policy.packageName}@${policy.installedVersion}`;
+  const matches = candidate.packages.filter(
+    (packageEntry) =>
+      packageEntry.Name === policy.packageName &&
+      packageEntry.Version === policy.inventoryVersion &&
+      packageEntry.Release === policy.inventoryRelease &&
+      packageEntry.Arch === policy.inventoryArchitecture &&
+      packageEntry.ID === expectedId &&
+      packageEntry.Layer?.Digest === policy.affectedLayer.digest &&
+      packageEntry.Layer?.DiffID === policy.affectedLayer.diffId,
+  );
+  const [packageEntry] = matches;
+  const findingUid = candidate.finding?.PkgIdentifier?.UID;
+  return (
+    matches.length === 1 &&
+    typeof findingUid === "string" &&
+    findingUid !== "" &&
+    packageEntry?.Identifier?.UID === findingUid &&
+    candidate.finding?.Layer?.Digest === policy.affectedLayer.digest &&
+    candidate.finding?.Layer?.DiffID === policy.affectedLayer.diffId
+  );
+}
+
+function hasExpectedOciBuildEvidence(evidence, expectedImageId) {
+  try {
+    validateTrivyOciBuildEvidence(evidence, { expectedImageId });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function classifyTemporaryImageRisk(
+  report,
+  findings,
+  evaluatedAt,
+  ociBuildEvidence,
+  expectedImageId,
+) {
+  const policy = TRIVY_TEMPORARY_RISK_ACCEPTANCE;
+  const [candidate] = findings;
+  const eligible =
+    findings.length === policy.maximumOccurrences &&
+    candidate?.resultClass === policy.resultClass &&
+    candidate?.targetType === policy.targetType &&
+    candidate?.finding?.VulnerabilityID === policy.vulnerabilityId &&
+    candidate?.finding?.PkgID ===
+      `${policy.packageName}@${policy.installedVersion}` &&
+    candidate?.finding?.PkgName === policy.packageName &&
+    candidate?.finding?.InstalledVersion === policy.installedVersion &&
+    candidate?.finding?.Severity === policy.severity &&
+    candidate?.finding?.Status === policy.status &&
+    hasAllowedFixedVersion(candidate?.finding ?? {}) &&
+    hasExactAffectedPackage(candidate, policy) &&
+    report.Metadata?.OS?.Family === "debian" &&
+    typeof report.Metadata?.OS?.Name === "string" &&
+    /^13(?:\.|$)/u.test(report.Metadata.OS.Name) &&
+    report.Metadata.DiffIDs.filter(
+      (diffId) => diffId === policy.affectedLayer.diffId,
+    ).length === 1 &&
+    imageBaseReference(report.Metadata) === policy.baseImage.reference &&
+    hasExpectedOciBuildEvidence(ociBuildEvidence, expectedImageId) &&
+    isWithinTemporaryAcceptanceWindow(evaluatedAt);
+  return eligible
+    ? {
+        acceptedRiskFindingCount: 1,
+        blockingFindingCount: 0,
+        riskAcceptance: temporaryRiskAcceptanceEvidence(),
+      }
+    : {
+        acceptedRiskFindingCount: 0,
+        blockingFindingCount: findings.length,
+        riskAcceptance: null,
+      };
 }
 
 function validateMisconfigurationSummary(summary, label) {
@@ -280,6 +605,9 @@ export function inspectTrivyReport(
     expectedConfigCommit,
     expectedTrivyVersion = TRIVY_REPORT_CONTRACT.trivyVersion,
     requireSanitizedConfigMetadata = false,
+    requireSanitizedPackageMetadata = false,
+    evaluatedAt,
+    ociBuildEvidence,
   },
 ) {
   assertNonEmptyString(label, "o relatorio Trivy precisa de um rotulo");
@@ -292,6 +620,11 @@ export function inspectTrivyReport(
   validateReportEnvelope(report, label, expectedTrivyVersion);
 
   if (scope === "image") {
+    const effectiveEvaluationTime = evaluatedAt ?? report.CreatedAt;
+    assertTimestamp(
+      effectiveEvaluationTime,
+      `${label} recebeu instante de avaliacao invalido`,
+    );
     const artifactName = expectedArtifactName ?? report.ArtifactName;
     const imageId = expectedImageId ?? report.Metadata?.ImageID;
     assertNonEmptyString(artifactName, `${label} nao recebeu o nome esperado`);
@@ -306,9 +639,19 @@ export function inspectTrivyReport(
     }
     assertDigest(report.ArtifactID, `${label} possui ArtifactID invalido`);
     validateImageMetadata(report.Metadata, label, artifactName, imageId);
-    const { targetCount, packageCount, findingCount } = validateImageResults(
+    const {
+      targetCount,
+      packageCount,
+      findingCount,
+      findings,
+      packageMetadataSanitized,
+    } = validateImageResults(report, label, requireSanitizedPackageMetadata);
+    const risk = classifyTemporaryImageRisk(
       report,
-      label,
+      findings,
+      effectiveEvaluationTime,
+      ociBuildEvidence,
+      imageId,
     );
     return {
       label,
@@ -319,9 +662,14 @@ export function inspectTrivyReport(
       imageId,
       targetCount,
       packageCount,
+      packageMetadataSanitized,
       findingCount,
+      acceptedRiskFindingCount: risk.acceptedRiskFindingCount,
+      blockingFindingCount: risk.blockingFindingCount,
+      riskAcceptance: risk.riskAcceptance,
+      evaluatedAt: effectiveEvaluationTime,
       trivyVersion: report.Trivy.Version,
-      approved: findingCount === 0,
+      approved: risk.blockingFindingCount === 0,
     };
   }
 
@@ -402,6 +750,9 @@ export function inspectTrivyReport(
     requiredTargetType: TRIVY_REPORT_CONTRACT.requiredConfigType,
     targetCount,
     findingCount,
+    acceptedRiskFindingCount: 0,
+    blockingFindingCount: findingCount,
+    riskAcceptance: null,
     trivyVersion: report.Trivy.Version,
     approved: findingCount === 0,
   };
@@ -427,7 +778,7 @@ function assertNullableNonNegativeInteger(value, label) {
   }
 }
 
-function validateSummaryReportEntry(entry, scope, label) {
+function validateSummaryReportEntry(entry, scope, label, schemaVersion) {
   assertObject(entry, `${label} nao contem objeto valido`);
   const commonKeys = [
     "approved",
@@ -438,10 +789,18 @@ function validateSummaryReportEntry(entry, scope, label) {
     "structurallyValid",
     "targetCount",
   ];
+  if (schemaVersion === 2) {
+    commonKeys.push("acceptedRiskFindingCount", "blockingFindingCount");
+  }
   assertExactKeys(
     entry,
     scope === "image"
-      ? [...commonKeys, "imageId", "packageCount"]
+      ? [
+          ...commonKeys,
+          "imageId",
+          "packageCount",
+          ...(schemaVersion === 2 ? ["packageMetadataSanitized"] : []),
+        ]
       : [...commonKeys, "commit", "metadataSanitized", "requiredTargetType"],
     label,
   );
@@ -461,7 +820,11 @@ function validateSummaryReportEntry(entry, scope, label) {
       throw new Error(`${label}.${field} deve ser texto nao vazio ou null`);
     }
   }
-  for (const field of ["findingCount", "targetCount"]) {
+  const countFields = ["findingCount", "targetCount"];
+  if (schemaVersion === 2) {
+    countFields.push("acceptedRiskFindingCount", "blockingFindingCount");
+  }
+  for (const field of countFields) {
     assertNullableNonNegativeInteger(entry[field], `${label}.${field}`);
   }
   if (scope === "image") {
@@ -472,6 +835,12 @@ function validateSummaryReportEntry(entry, scope, label) {
       entry.packageCount,
       `${label}.packageCount`,
     );
+    if (
+      schemaVersion === 2 &&
+      typeof entry.packageMetadataSanitized !== "boolean"
+    ) {
+      throw new Error(`${label}.packageMetadataSanitized deve ser booleano`);
+    }
   } else if (
     (entry.commit !== null &&
       (typeof entry.commit !== "string" ||
@@ -484,16 +853,31 @@ function validateSummaryReportEntry(entry, scope, label) {
     throw new Error(`${label} possui metadados estruturais invalidos`);
   }
   if (!entry.structurallyValid) {
-    if (entry.approved || entry.failureCode === null) {
+    if (
+      entry.approved ||
+      entry.failureCode === null ||
+      (schemaVersion === 2 &&
+        (entry.findingCount !== null ||
+          entry.acceptedRiskFindingCount !== null ||
+          entry.blockingFindingCount !== null ||
+          (scope === "image" && entry.packageMetadataSanitized !== false)))
+    ) {
       throw new Error(`${label} invalido precisa falhar de modo fechado`);
     }
     return;
   }
+  const decisionIsCoherent =
+    schemaVersion === 1
+      ? entry.approved === (entry.findingCount === 0)
+      : entry.findingCount ===
+          entry.acceptedRiskFindingCount + entry.blockingFindingCount &&
+        entry.approved === (entry.blockingFindingCount === 0) &&
+        (scope === "image" || entry.acceptedRiskFindingCount === 0);
   if (
     entry.failureCode !== null ||
     entry.findingCount === null ||
     entry.targetCount === null ||
-    entry.approved !== (entry.findingCount === 0)
+    !decisionIsCoherent
   ) {
     throw new Error(`${label} possui decisao divergente dos achados`);
   }
@@ -502,6 +886,9 @@ function validateSummaryReportEntry(entry, scope, label) {
     if (!Number.isSafeInteger(entry.packageCount) || entry.packageCount < 1) {
       throw new Error(`${label}.packageCount nao comprova inventario`);
     }
+    if (schemaVersion === 2 && entry.packageMetadataSanitized !== true) {
+      throw new Error(`${label} nao comprova sanitizacao dos pacotes`);
+    }
   } else if (
     typeof entry.commit !== "string" ||
     !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/u.test(entry.commit) ||
@@ -509,6 +896,65 @@ function validateSummaryReportEntry(entry, scope, label) {
     entry.requiredTargetType !== TRIVY_REPORT_CONTRACT.requiredConfigType
   ) {
     throw new Error(`${label} nao comprova commit, sanitizacao e Dockerfile`);
+  }
+}
+
+function validateRiskAcceptanceEvidence(value, label) {
+  assertObject(value, `${label} nao contem objeto valido`);
+  const expected = temporaryRiskAcceptanceEvidence();
+  assertExactKeys(value, Object.keys(expected), label);
+  assertObject(value.baseImage, `${label}.baseImage nao contem objeto valido`);
+  assertExactKeys(
+    value.baseImage,
+    Object.keys(expected.baseImage),
+    `${label}.baseImage`,
+  );
+  assertObject(
+    value.approvedBy,
+    `${label}.approvedBy nao contem objeto valido`,
+  );
+  assertExactKeys(
+    value.approvedBy,
+    Object.keys(expected.approvedBy),
+    `${label}.approvedBy`,
+  );
+  assertObject(
+    value.affectedLayer,
+    `${label}.affectedLayer nao contem objeto valido`,
+  );
+  assertExactKeys(
+    value.affectedLayer,
+    Object.keys(expected.affectedLayer),
+    `${label}.affectedLayer`,
+  );
+  for (const key of Object.keys(expected)) {
+    if (
+      key === "baseImage" ||
+      key === "approvedBy" ||
+      key === "affectedLayer"
+    ) {
+      continue;
+    }
+    if (value[key] !== expected[key]) {
+      throw new Error(`${label}.${key} diverge da aprovacao registrada`);
+    }
+  }
+  for (const key of Object.keys(expected.baseImage)) {
+    if (value.baseImage[key] !== expected.baseImage[key]) {
+      throw new Error(`${label}.baseImage.${key} diverge da base aprovada`);
+    }
+  }
+  for (const key of Object.keys(expected.approvedBy)) {
+    if (value.approvedBy[key] !== expected.approvedBy[key]) {
+      throw new Error(`${label}.approvedBy.${key} diverge da aprovacao`);
+    }
+  }
+  for (const key of Object.keys(expected.affectedLayer)) {
+    if (value.affectedLayer[key] !== expected.affectedLayer[key]) {
+      throw new Error(
+        `${label}.affectedLayer.${key} diverge da camada aprovada`,
+      );
+    }
   }
 }
 
@@ -526,34 +972,41 @@ export function validateTrivyScanSummary(
   } = {},
 ) {
   assertObject(report, "resumo Trivy nao contem objeto JSON valido");
-  assertExactKeys(
-    report,
-    [
-      "actionRevision",
-      "conclusion",
-      "configurationPolicy",
-      "configStepOutcome",
-      "expectedConfigArtifactName",
-      "expectedConfigCommit",
-      "expectedImageId",
-      "expectedImageReference",
-      "failureCode",
-      "outcome",
-      "passed",
-      "rawFindingReportsRetained",
-      "rawReportsPublished",
-      "redacted",
-      "reportType",
-      "reports",
-      "scanner",
-      "scannerVersion",
-      "schemaVersion",
-      "imageStepOutcome",
-    ],
-    "resumo Trivy",
-  );
+  if (![1, 2].includes(report.schemaVersion)) {
+    throw new Error("resumo Trivy possui schemaVersion incompativel");
+  }
+  const summaryKeys = [
+    "actionRevision",
+    "conclusion",
+    "configurationPolicy",
+    "configStepOutcome",
+    "expectedConfigArtifactName",
+    "expectedConfigCommit",
+    "expectedImageId",
+    "expectedImageReference",
+    "failureCode",
+    "outcome",
+    "passed",
+    "rawFindingReportsRetained",
+    "rawReportsPublished",
+    "redacted",
+    "reportType",
+    "reports",
+    "scanner",
+    "scannerVersion",
+    "schemaVersion",
+    "imageStepOutcome",
+  ];
+  if (report.schemaVersion === 2) {
+    summaryKeys.push(
+      "evaluatedAt",
+      "ociBuildEvidenceValid",
+      "reportPublicationStatus",
+      "riskAcceptance",
+    );
+  }
+  assertExactKeys(report, summaryKeys, "resumo Trivy");
   if (
-    report.schemaVersion !== 1 ||
     report.reportType !== "TRIVY_SCAN_RESULT" ||
     report.scanner !== "trivy" ||
     report.scannerVersion !== TRIVY_REPORT_CONTRACT.trivyVersion ||
@@ -571,7 +1024,7 @@ export function validateTrivyScanSummary(
     !summaryOutcomes.has(report.outcome) ||
     typeof report.passed !== "boolean" ||
     typeof report.rawReportsPublished !== "boolean" ||
-    report.rawFindingReportsRetained !== false ||
+    typeof report.rawFindingReportsRetained !== "boolean" ||
     report.redacted !== true ||
     (report.failureCode !== null &&
       (typeof report.failureCode !== "string" || report.failureCode === "")) ||
@@ -586,12 +1039,33 @@ export function validateTrivyScanSummary(
     report.reports.image,
     "image",
     "resumo Trivy.image",
+    report.schemaVersion,
   );
   validateSummaryReportEntry(
     report.reports.config,
     "config",
     "resumo Trivy.config",
+    report.schemaVersion,
   );
+
+  if (report.schemaVersion === 1) {
+    if (
+      report.rawFindingReportsRetained !== false ||
+      report.outcome === "success_with_accepted_risk"
+    ) {
+      throw new Error("resumo Trivy legado possui estado de risco invalido");
+    }
+  } else {
+    assertTimestamp(report.evaluatedAt, "resumo Trivy.evaluatedAt invalido");
+    if (
+      typeof report.ociBuildEvidenceValid !== "boolean" ||
+      !["failed", "not_attempted", "published"].includes(
+        report.reportPublicationStatus,
+      )
+    ) {
+      throw new Error("resumo Trivy nao identifica a prova OCI e a publicacao");
+    }
+  }
 
   if (
     (expectedImageReference !== undefined &&
@@ -616,25 +1090,73 @@ export function validateTrivyScanSummary(
   const stepOutcomesMatch =
     allStructured &&
     report.imageStepOutcome ===
-      (report.reports.image.approved ? "success" : "failure") &&
+      (report.reports.image.findingCount === 0 ? "success" : "failure") &&
     report.configStepOutcome ===
-      (report.reports.config.approved ? "success" : "failure");
-  const allApproved =
+      (report.reports.config.findingCount === 0 ? "success" : "failure");
+  const scansApproved =
     stepOutcomesMatch &&
     report.reports.image.approved &&
     report.reports.config.approved;
+  const ociBuildEvidenceValid =
+    report.schemaVersion === 1 ? true : report.ociBuildEvidenceValid;
+  const expectedPublicationStatus =
+    report.schemaVersion === 1
+      ? report.rawReportsPublished
+        ? "published"
+        : "not_attempted"
+      : scansApproved && ociBuildEvidenceValid
+        ? report.rawReportsPublished
+          ? "published"
+          : "failed"
+        : "not_attempted";
+  const allApproved =
+    scansApproved &&
+    ociBuildEvidenceValid &&
+    expectedPublicationStatus === "published";
+  const totalFindings = allStructured
+    ? report.reports.image.findingCount + report.reports.config.findingCount
+    : 0;
+  const totalAcceptedRisks =
+    report.schemaVersion === 2 && allStructured
+      ? report.reports.image.acceptedRiskFindingCount +
+        report.reports.config.acceptedRiskFindingCount
+      : 0;
+  if (report.schemaVersion === 2) {
+    if (totalAcceptedRisks === 1) {
+      validateRiskAcceptanceEvidence(
+        report.riskAcceptance,
+        "resumo Trivy.riskAcceptance",
+      );
+      if (!isWithinTemporaryAcceptanceWindow(report.evaluatedAt)) {
+        throw new Error("resumo Trivy usa aceitacao fora da vigencia");
+      }
+    } else if (report.riskAcceptance !== null || totalAcceptedRisks !== 0) {
+      throw new Error("resumo Trivy possui aceitacao de risco incoerente");
+    }
+  }
+  const expectedAcceptedOutcome = allApproved && totalAcceptedRisks === 1;
   if (
+    (report.schemaVersion === 2 &&
+      report.reportPublicationStatus !== expectedPublicationStatus) ||
     report.passed !== allApproved ||
-    report.rawReportsPublished !== allApproved ||
+    report.rawReportsPublished !==
+      (expectedPublicationStatus === "published") ||
+    report.rawFindingReportsRetained !== (allApproved && totalFindings > 0) ||
     (allApproved &&
+      !expectedAcceptedOutcome &&
       (report.outcome !== "success" ||
         report.failureCode !== null ||
         report.conclusion !== "SEM_ACHADOS_BLOQUEADORES")) ||
+    (expectedAcceptedOutcome &&
+      (report.outcome !== "success_with_accepted_risk" ||
+        report.failureCode !== null ||
+        report.conclusion !== "APROVADA_COM_RISCO_TEMPORARIO_ACEITO")) ||
     (report.outcome === "findings" &&
       report.conclusion !== "NAO_APROVADA_ACHADO_TRIVY") ||
     (report.outcome === "operational_failure" &&
       report.conclusion !== "NAO_APROVADA_FALHA_OPERACIONAL") ||
-    (!allApproved && report.outcome === "success") ||
+    (!allApproved &&
+      ["success", "success_with_accepted_risk"].includes(report.outcome)) ||
     (report.outcome === "findings" &&
       (!stepOutcomesMatch ||
         (report.reports.image.findingCount === 0 &&

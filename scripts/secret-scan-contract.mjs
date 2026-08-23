@@ -137,8 +137,8 @@ export function validateContentSecretScanReport(
     report.scannerVersionVerified !== true ||
     report.scanMode !== "directory-with-archives" ||
     JSON.stringify(report.scopes) !== JSON.stringify(expectedScopes) ||
-    report.prohibitedDataPolicy !== "PORTAL_DP_PROHIBITED_DATA_V2" ||
-    report.prohibitedDataArchiveInspection !== "FAIL_CLOSED_TAR_ZIP_OCI_V1" ||
+    report.prohibitedDataPolicy !== "PORTAL_DP_PROHIBITED_DATA_V3" ||
+    report.prohibitedDataArchiveInspection !== "FAIL_CLOSED_TAR_ZIP_OCI_V2" ||
     report.prohibitedDataArchiveMaxDepth !== 4 ||
     report.prohibitedDataArchiveMaxEntries !== 50_000 ||
     report.prohibitedDataArchiveMaxEntryBytes !== 268_435_456 ||

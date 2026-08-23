@@ -1,9 +1,18 @@
+import { randomUUID } from "node:crypto";
 import { lstat, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+
+import {
+  createProhibitedDataInspection,
+  inspectProhibitedData,
+} from "./prohibited-data-content-scan.mjs";
+import { assertNoDuplicateJsonKeys } from "./strict-json.mjs";
 
 const EXPECTED_SBOM_COUNT = 11;
 const CYCLONEDX_SCHEMA = "http://cyclonedx.org/schema/bom-1.7.schema.json";
 const REDACTED_CONTACT = "[contato-publico-removido]";
+const serialNumberPattern =
+  /^urn:uuid:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu;
 const emailPattern = /\b[A-Z0-9._%+-]+@(?:[A-Z0-9-]+\.)+[A-Z]{2,63}\b/giu;
 const exactEmailPattern = /^[A-Z0-9._%+-]+@(?:[A-Z0-9-]+\.)+[A-Z]{2,63}$/iu;
 const githubRepositoryPathPattern = /^[A-Z0-9_.-]+\/[A-Z0-9_.-]+(?:\.git)?$/iu;
@@ -22,110 +31,6 @@ function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-// JSON.parse aceita silenciosamente chaves repetidas. Esta leitura lexical
-// adicional rejeita inclusive duplicacoes escritas com escapes Unicode, antes
-// que qualquer contato seja removido do documento.
-function assertNoDuplicateJsonKeys(text) {
-  let position = 0;
-
-  function skipWhitespace() {
-    while (/\s/u.test(text[position] ?? "")) position += 1;
-  }
-
-  function parseString() {
-    if (text[position] !== '"') fail("JSON string was expected");
-    const start = position;
-    position += 1;
-    while (position < text.length) {
-      if (text[position] === '"') {
-        position += 1;
-        return JSON.parse(text.slice(start, position));
-      }
-      if (text[position] === "\\") {
-        position += text[position + 1] === "u" ? 6 : 2;
-      } else {
-        position += 1;
-      }
-    }
-    fail("JSON string is unterminated");
-  }
-
-  function parseValue() {
-    skipWhitespace();
-    const token = text[position];
-    if (token === "{") {
-      parseObject();
-      return;
-    }
-    if (token === "[") {
-      parseArray();
-      return;
-    }
-    if (token === '"') {
-      parseString();
-      return;
-    }
-    const remaining = text.slice(position);
-    const primitive = remaining.match(
-      /^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/u,
-    )?.[0];
-    if (!primitive) fail("JSON value was expected");
-    position += primitive.length;
-  }
-
-  function parseObject() {
-    position += 1;
-    skipWhitespace();
-    const keys = new Set();
-    if (text[position] === "}") {
-      position += 1;
-      return;
-    }
-    while (position < text.length) {
-      skipWhitespace();
-      const key = parseString();
-      if (keys.has(key)) fail("JSON contains a duplicate object key");
-      keys.add(key);
-      skipWhitespace();
-      if (text[position] !== ":") fail("JSON object separator is missing");
-      position += 1;
-      parseValue();
-      skipWhitespace();
-      if (text[position] === "}") {
-        position += 1;
-        return;
-      }
-      if (text[position] !== ",") fail("JSON object is malformed");
-      position += 1;
-    }
-    fail("JSON object is unterminated");
-  }
-
-  function parseArray() {
-    position += 1;
-    skipWhitespace();
-    if (text[position] === "]") {
-      position += 1;
-      return;
-    }
-    while (position < text.length) {
-      parseValue();
-      skipWhitespace();
-      if (text[position] === "]") {
-        position += 1;
-        return;
-      }
-      if (text[position] !== ",") fail("JSON array is malformed");
-      position += 1;
-    }
-    fail("JSON array is unterminated");
-  }
-
-  parseValue();
-  skipWhitespace();
-  if (position !== text.length) fail("JSON contains trailing content");
-}
-
 function parseSbom(text) {
   let document;
   try {
@@ -133,12 +38,20 @@ function parseSbom(text) {
   } catch {
     fail("document is not valid JSON");
   }
-  assertNoDuplicateJsonKeys(text);
+  try {
+    assertNoDuplicateJsonKeys(text);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : "JSON is ambiguous");
+  }
   if (
     !isObject(document) ||
     document.$schema !== CYCLONEDX_SCHEMA ||
     document.bomFormat !== "CycloneDX" ||
     document.specVersion !== "1.7" ||
+    typeof document.serialNumber !== "string" ||
+    !serialNumberPattern.test(document.serialNumber) ||
+    !Number.isSafeInteger(document.version) ||
+    document.version < 1 ||
     !isObject(document.metadata) ||
     !isObject(document.metadata.component) ||
     !Array.isArray(document.components) ||
@@ -147,6 +60,28 @@ function parseSbom(text) {
     fail("document is not the expected CycloneDX 1.7 inventory");
   }
   return document;
+}
+
+function generateSafeSerialNumber(usedSerialNumbers) {
+  // O gerador CycloneDX cria este UUID de forma aleatoria. Como uma sequencia
+  // hexadecimal pode formar acidentalmente um CPF/CNPJ valido, o sanitizador
+  // regenera o identificador e o submete ao mesmo detector do artefato final.
+  // Nenhum campo e isentado no scanner: somente um UUID novo e limpo e gravado.
+  for (let attempt = 0; attempt < 256; attempt += 1) {
+    const candidate = `urn:uuid:${randomUUID()}`;
+    if (usedSerialNumbers.has(candidate)) continue;
+    const inspection = createProhibitedDataInspection();
+    inspectProhibitedData(
+      Buffer.from(candidate, "utf8"),
+      "cyclonedx-generated-serial.txt",
+      inspection,
+    );
+    if (inspection.findingCount === 0) {
+      usedSerialNumbers.add(candidate);
+      return candidate;
+    }
+  }
+  fail("could not generate a safe unique CycloneDX serial number");
 }
 
 function isInternalComponent(component) {
@@ -347,6 +282,7 @@ async function main() {
   // Todos os documentos sao validados antes da primeira escrita. Assim, um
   // SBOM invalido nao deixa o conjunto parcialmente sanitizado.
   const documents = [];
+  const generatedSerialNumbers = new Set();
   let redactedEmailCount = 0;
   let normalizedVcsReferenceCount = 0;
   for (const entry of sbomEntries) {
@@ -357,6 +293,7 @@ async function main() {
     const text = await readFile(path, "utf8");
     const document = parseSbom(text);
     const result = sanitizeSbom(document);
+    document.serialNumber = generateSafeSerialNumber(generatedSerialNumbers);
     redactedEmailCount += result.redactedEmailCount;
     normalizedVcsReferenceCount += result.normalizedVcsReferenceCount;
     documents.push({ path, document });
@@ -374,6 +311,7 @@ async function main() {
     `${JSON.stringify({
       sanitized: true,
       documentCount: documents.length,
+      regeneratedSerialNumberCount: generatedSerialNumbers.size,
       redactedEmailCount,
       normalizedVcsReferenceCount,
     })}\n`,

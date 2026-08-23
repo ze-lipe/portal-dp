@@ -1,7 +1,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
@@ -11,6 +11,169 @@ const slsaProvenanceV1 = "https://slsa.dev/provenance/v1";
 const spdxDocumentPredicate = "https://spdx.dev/Document";
 const buildkitAttestationArtifactType =
   "application/vnd.docker.attestation.manifest.v1+json";
+export const expectedRuntimeBase =
+  "gcr.io/distroless/nodejs24-debian13:nonroot@sha256:ffab599740d4aaa66029d02b9e6d3de4f622fefb7410081c5ef69c86430f364d";
+export const expectedDockerfileFrontend =
+  "docker/dockerfile:1.7.1@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e";
+const expectedRuntimeRepository = "gcr.io/distroless/nodejs24-debian13";
+const expectedRuntimeTag = "nonroot";
+const expectedRuntimeDigest = expectedRuntimeBase.slice(
+  expectedRuntimeBase.indexOf("@sha256:") + "@sha256:".length,
+);
+const expectedRuntimePlatform = "linux/amd64";
+const expectedDockerfileFrontendRepository = "docker/dockerfile";
+const expectedDockerfileFrontendTag = "1.7.1";
+const expectedDockerfileFrontendDigest = expectedDockerfileFrontend.slice(
+  expectedDockerfileFrontend.indexOf("@sha256:") + "@sha256:".length,
+);
+const expectedDockerfilePath = "Dockerfile";
+const runtimeBaseLabel = "org.opencontainers.image.base.name";
+
+function dockerfileLogicalInstructions(dockerfile) {
+  const instructions = [];
+  let continued = "";
+
+  for (const physicalLine of dockerfile.split(/\r?\n/u)) {
+    const line = physicalLine.trimEnd();
+    if (continued === "" && /^\s*#\s*escape\s*=/iu.test(line)) {
+      throw new Error("Dockerfile nao pode alterar o caractere de escape");
+    }
+    if (continued === "" && /^\s*(?:#.*)?$/u.test(line)) continue;
+    // Este verificador intencionalmente aceita um subconjunto simples do
+    // Dockerfile. Sem um parser de heredoc, linhas literais poderiam parecer
+    // novos FROM/LABEL; portanto a sintaxe e recusada de forma fechada.
+    if (line.includes("<<")) {
+      throw new Error("Dockerfile nao pode usar heredoc nesta prova");
+    }
+
+    const fragment = line.trim();
+    const hasContinuation = fragment.endsWith("\\");
+    const content = hasContinuation
+      ? fragment.slice(0, -1).trimEnd()
+      : fragment;
+    continued = continued === "" ? content : `${continued} ${content}`;
+    if (!hasContinuation) {
+      instructions.push(continued);
+      continued = "";
+    }
+  }
+
+  if (continued !== "") {
+    throw new Error("Dockerfile termina com continuacao incompleta");
+  }
+  return instructions;
+}
+
+function inspectDockerfile(dockerfileBytes) {
+  if (!Buffer.isBuffer(dockerfileBytes) || dockerfileBytes.length === 0) {
+    throw new Error("Dockerfile usado no build nao foi informado");
+  }
+  let dockerfile;
+  try {
+    dockerfile = new TextDecoder("utf-8", { fatal: true }).decode(
+      dockerfileBytes,
+    );
+  } catch {
+    throw new Error("Dockerfile usado no build nao possui UTF-8 valido");
+  }
+  if (dockerfile.includes("\u0000")) {
+    throw new Error("Dockerfile usado no build possui byte nulo");
+  }
+  const expectedSyntaxDirective = `# syntax=${expectedDockerfileFrontend}`;
+  if (dockerfile.split(/\r?\n/u, 1)[0] !== expectedSyntaxDirective) {
+    throw new Error(
+      `Dockerfile deve iniciar exatamente com ${expectedSyntaxDirective}`,
+    );
+  }
+
+  const instructions = dockerfileLogicalInstructions(dockerfile);
+  const fromIndexes = instructions
+    .map((instruction, index) =>
+      /^FROM(?:\s|$)/iu.test(instruction) ? index : -1,
+    )
+    .filter((index) => index >= 0);
+  if (fromIndexes.length === 0) {
+    throw new Error("Dockerfile usado no build nao possui FROM");
+  }
+
+  const runtimeFrom = `FROM ${expectedRuntimeBase} AS runtime`;
+  const lastFromIndex = fromIndexes.at(-1);
+  if (instructions[lastFromIndex] !== runtimeFrom) {
+    throw new Error(
+      `ultimo FROM do Dockerfile deve ser exatamente ${runtimeFrom}`,
+    );
+  }
+
+  const expectedLabel = `LABEL ${runtimeBaseLabel}="${expectedRuntimeBase}"`;
+  const runtimeStageLabels = instructions
+    .slice(lastFromIndex + 1)
+    .filter((instruction) =>
+      new RegExp(
+        `^LABEL\\s+${runtimeBaseLabel.replaceAll(".", "\\.")}(?:=|\\s)`,
+        "iu",
+      ).test(instruction),
+    );
+  if (
+    runtimeStageLabels.length !== 1 ||
+    runtimeStageLabels[0] !== expectedLabel
+  ) {
+    throw new Error(
+      `estagio runtime do Dockerfile deve declarar exatamente ${expectedLabel}`,
+    );
+  }
+
+  return createHash("sha256").update(dockerfileBytes).digest("hex");
+}
+
+function isExpectedImageDependency(dependency, { repository, tag, digest }) {
+  if (
+    !dependency ||
+    typeof dependency !== "object" ||
+    Array.isArray(dependency) ||
+    dependency.digest?.sha256 !== digest ||
+    typeof dependency.uri !== "string"
+  ) {
+    return false;
+  }
+
+  const [packageReference, query = ""] = dependency.uri.split("?", 2);
+  if (packageReference !== `pkg:docker/${repository}@${tag}`) {
+    return false;
+  }
+  const qualifiers = new URLSearchParams(query);
+  if (
+    qualifiers.getAll("platform").length !== 1 ||
+    qualifiers.get("platform") !== expectedRuntimePlatform
+  ) {
+    return false;
+  }
+  const digestQualifiers = qualifiers.getAll("digest");
+  if (
+    digestQualifiers.length !== 1 ||
+    digestQualifiers[0] !== `sha256:${digest}`
+  ) {
+    return false;
+  }
+  return [...qualifiers.keys()].every((key) =>
+    ["digest", "platform"].includes(key),
+  );
+}
+
+function isExpectedRuntimeDependency(dependency) {
+  return isExpectedImageDependency(dependency, {
+    repository: expectedRuntimeRepository,
+    tag: expectedRuntimeTag,
+    digest: expectedRuntimeDigest,
+  });
+}
+
+function isExpectedDockerfileFrontendDependency(dependency) {
+  return isExpectedImageDependency(dependency, {
+    repository: expectedDockerfileFrontendRepository,
+    tag: expectedDockerfileFrontendTag,
+    digest: expectedDockerfileFrontendDigest,
+  });
+}
 
 function assertDigest(value, label) {
   if (!digestPattern.test(value ?? "")) {
@@ -97,6 +260,45 @@ function assertProvenanceStatement({
       "provenance SLSA v1 nao possui buildDefinition.buildType valido",
     );
   }
+  const externalParameters =
+    document.predicate.buildDefinition.externalParameters;
+  if (externalParameters?.configSource?.path !== expectedDockerfilePath) {
+    throw new Error(
+      `provenance SLSA v1 nao comprova configSource.path=${expectedDockerfilePath}`,
+    );
+  }
+  const buildRequest = externalParameters?.request;
+  const localNames = Array.isArray(buildRequest?.locals)
+    ? buildRequest.locals.map((item) => item?.name)
+    : [];
+  if (
+    buildRequest?.frontend !== "gateway.v0" ||
+    buildRequest?.args?.source !== expectedDockerfileFrontend ||
+    !localNames.includes("context") ||
+    !localNames.includes("dockerfile")
+  ) {
+    throw new Error(
+      "provenance SLSA v1 nao comprova o frontend Gateway imutavel do Dockerfile",
+    );
+  }
+  const resolvedDependencies =
+    document.predicate.buildDefinition.resolvedDependencies;
+  const runtimeDependencies = Array.isArray(resolvedDependencies)
+    ? resolvedDependencies.filter(isExpectedRuntimeDependency)
+    : [];
+  if (runtimeDependencies.length !== 1) {
+    throw new Error(
+      "provenance SLSA v1 nao comprova a dependencia Distroless fixada",
+    );
+  }
+  const dockerfileFrontendDependencies = Array.isArray(resolvedDependencies)
+    ? resolvedDependencies.filter(isExpectedDockerfileFrontendDependency)
+    : [];
+  if (dockerfileFrontendDependencies.length !== 1) {
+    throw new Error(
+      "provenance SLSA v1 nao comprova o frontend Dockerfile fixado",
+    );
+  }
   const observedBuilderId = document.predicate?.runDetails?.builder?.id;
   if (typeof observedBuilderId !== "string" || observedBuilderId.length === 0) {
     throw new Error(
@@ -106,6 +308,11 @@ function assertProvenanceStatement({
   if (observedBuilderId !== expectedBuilderId) {
     throw new Error("builder id do provenance diverge do expectedBuilderId");
   }
+  return {
+    dockerfileFrontendLinked: true,
+    dockerfileSourceLinked: true,
+    provenanceDependencyLinked: true,
+  };
 }
 
 function assertSbomStatement({ document, imageReference }) {
@@ -211,6 +418,7 @@ async function hashFile(path) {
  */
 export async function createOciBuildEvidence({
   buildDigest,
+  dockerfileBytes,
   localImageId,
   ociArchiveSha256,
   expectedBuilderId,
@@ -227,6 +435,7 @@ export async function createOciBuildEvidence({
   assertDigest(runtimeImageDigest, "runtimeImageDigest");
   assertDigest(runtimeImageId, "runtimeImageId");
   assertExpectedBuilderId(expectedBuilderId);
+  const dockerfileSha256 = inspectDockerfile(dockerfileBytes);
   if (runtimeImageId !== localImageId) {
     throw new Error("ImageID do Buildx diverge da imagem local");
   }
@@ -289,6 +498,8 @@ export async function createOciBuildEvidence({
   const verifiedImageLayerDigests = new Set();
   const attestationDescriptorDigests = new Set();
   const predicatesByReference = new Map();
+  const provenanceProofsByReference = new Map();
+  let runtimeConfigBase = null;
   let buildNode =
     indexDigest === buildDigest
       ? {
@@ -377,12 +588,20 @@ export async function createOciBuildEvidence({
       if (descriptor.descriptorKind === "attestation-layer") {
         const predicateType = String(descriptor.predicateType ?? "");
         if (predicateType.startsWith("https://slsa.dev/provenance/")) {
-          assertProvenanceStatement({
+          const provenanceProof = assertProvenanceStatement({
             document,
             predicateType,
             imageReference: effectiveAttestationReference,
             expectedBuilderId,
           });
+          const proofs =
+            provenanceProofsByReference.get(effectiveAttestationReference) ??
+            [];
+          proofs.push(provenanceProof);
+          provenanceProofsByReference.set(
+            effectiveAttestationReference,
+            proofs,
+          );
         } else if (predicateType === spdxDocumentPredicate) {
           assertSbomStatement({
             document,
@@ -398,6 +617,13 @@ export async function createOciBuildEvidence({
           predicatesByReference.get(effectiveAttestationReference) ?? new Set();
         predicates.add(predicateType);
         predicatesByReference.set(effectiveAttestationReference, predicates);
+      }
+      if (
+        descriptor.descriptorKind === "config" &&
+        descriptor.digest === localImageId
+      ) {
+        runtimeConfigBase =
+          document?.config?.Labels?.[runtimeBaseLabel] ?? null;
       }
       const children = childDescriptors(document);
       if (attestationManifest) {
@@ -479,13 +705,47 @@ export async function createOciBuildEvidence({
       "arquivo OCI nao comprova provenance e SBOM vinculados a imagem",
     );
   }
+  const provenanceProofs =
+    provenanceProofsByReference.get(ociImageManifestDigest) ?? [];
+  const provenanceDependencyLinked =
+    provenanceProofs.length > 0 &&
+    provenanceProofs.every(
+      (proof) => proof.provenanceDependencyLinked === true,
+    );
+  const dockerfileSourceLinked =
+    provenanceProofs.length > 0 &&
+    provenanceProofs.every((proof) => proof.dockerfileSourceLinked === true);
+  const dockerfileFrontendLinked =
+    provenanceProofs.length > 0 &&
+    provenanceProofs.every((proof) => proof.dockerfileFrontendLinked === true);
+  if (
+    !provenanceDependencyLinked ||
+    !dockerfileSourceLinked ||
+    !dockerfileFrontendLinked
+  ) {
+    throw new Error(
+      "provenance vinculado nao comprova a base e o Dockerfile esperados",
+    );
+  }
+  if (runtimeConfigBase !== expectedRuntimeBase) {
+    throw new Error(
+      "label da base na configuracao da imagem diverge do runtime esperado",
+    );
+  }
 
   const buildDescriptor = graph.get(buildDigest);
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     builder: "docker/build-push-action",
     buildDigest,
+    dockerfileFrontend: expectedDockerfileFrontend,
+    dockerfileFrontendLinked,
+    dockerfileSha256,
+    dockerfileSourceLinked,
     ociImageManifestDigest,
+    provenanceDependencyLinked,
+    runtimeBase: expectedRuntimeBase,
+    runtimeBaseLabelLinked: true,
     runtimeManifestDigest: runtimeImageDigest,
     localImageId,
     ociArchiveSha256,
@@ -517,7 +777,7 @@ export async function createOciBuildEvidence({
       },
     },
     sanitization:
-      "Somente digests e contagens estruturais; metadados, anotacoes e conteudo OCI foram descartados.",
+      "Somente digests, a referencia publica da base e provas estruturais; metadados, anotacoes e conteudo OCI foram descartados.",
   };
 }
 
@@ -564,6 +824,7 @@ async function main() {
   );
   const report = await createOciBuildEvidence({
     buildDigest: process.env.OCI_BUILD_DIGEST,
+    dockerfileBytes: await readFile(resolve(root, expectedDockerfilePath)),
     localImageId: process.env.OCI_LOCAL_IMAGE_ID,
     expectedBuilderId: process.env.OCI_EXPECTED_BUILDER_ID,
     ociArchiveSha256: await hashFile(archivePath),

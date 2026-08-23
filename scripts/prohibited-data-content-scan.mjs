@@ -1,7 +1,10 @@
 import { gunzipSync, inflateRawSync } from "node:zlib";
+import { TextDecoder } from "node:util";
+
+import { assertNoDuplicateJsonKeys } from "./strict-json.mjs";
 
 export const prohibitedDataArchivePolicy = Object.freeze({
-  identifier: "FAIL_CLOSED_TAR_ZIP_OCI_V1",
+  identifier: "FAIL_CLOSED_TAR_ZIP_OCI_V2",
   maxDepth: 4,
   maxEntries: 50_000,
   maxEntryBytes: 256 * 1024 * 1024,
@@ -44,8 +47,20 @@ export function inspectProhibitedData(bytes, logicalPath, inspection) {
 function inspect(bytes, logicalPath, inspection, depth, expanded) {
   const expectedKind = expectedArchiveKind(logicalPath);
   const detectedKind = detectArchiveKind(bytes);
+  const isNestedThirdPartyGzipByName =
+    depth > 0 &&
+    expectedKind === "gzip" &&
+    isThirdPartyDependencyPath(logicalPath);
 
-  if (expectedKind && detectedKind !== expectedKind) {
+  // Alguns pacotes publicos trazem fixtures chamadas .gz que, na verdade, usam
+  // outro formato. A tolerancia fica limitada a node_modules dentro de um
+  // arquivo; dados da aplicacao e entradas fornecidas diretamente continuam
+  // falhando de forma fechada quando a extensao e a assinatura divergem.
+  if (
+    expectedKind &&
+    detectedKind !== expectedKind &&
+    !isNestedThirdPartyGzipByName
+  ) {
     fail(`${expectedKind} input is malformed or unsupported`);
   }
   if (detectedKind === "unsupported-compression") {
@@ -132,6 +147,107 @@ function isThirdPartyDependencyPath(logicalPath) {
   return normalized.includes("/node_modules/");
 }
 
+const strictUtf8Decoder = new TextDecoder("utf-8", { fatal: true });
+
+function semanticJsonTexts(text, required) {
+  let document;
+  try {
+    document = JSON.parse(text);
+  } catch {
+    if (required) fail("JSON input is malformed, ambiguous or not UTF-8");
+    return null;
+  }
+  try {
+    assertNoDuplicateJsonKeys(text);
+  } catch {
+    fail("JSON input is malformed, ambiguous or not UTF-8");
+  }
+  // Escanear a serializacao JSON nao basta: JSON.stringify volta a escapar
+  // quebras de linha e tabulacoes dentro de strings. Cada chave e valor textual
+  // e examinado em sua forma semantica, separadamente, evitando tanto bypasses
+  // por escape quanto falsos positivos pela concatenacao de campos distintos.
+  const texts = [];
+  const pending = [document];
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (typeof value === "string") {
+      texts.push(value);
+    } else if (typeof value === "number") {
+      texts.push(String(value));
+    } else if (Array.isArray(value)) {
+      for (const entry of value) pending.push(entry);
+    } else if (value !== null && typeof value === "object") {
+      for (const [key, entry] of Object.entries(value)) {
+        texts.push(key);
+        pending.push(entry);
+      }
+    }
+  }
+  return texts;
+}
+
+function likelyUtf16Encoding(bytes) {
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return { encoding: "le", offset: 2 };
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return { encoding: "be", offset: 2 };
+  }
+  const pairCount = Math.min(Math.floor(bytes.length / 2), 2_048);
+  if (pairCount < 4) return null;
+  let evenNulls = 0;
+  let oddNulls = 0;
+  for (let index = 0; index < pairCount; index += 1) {
+    if (bytes[index * 2] === 0) evenNulls += 1;
+    if (bytes[index * 2 + 1] === 0) oddNulls += 1;
+  }
+  const evenRatio = evenNulls / pairCount;
+  const oddRatio = oddNulls / pairCount;
+  if (oddRatio >= 0.7 && evenRatio <= 0.1) {
+    return { encoding: "le", offset: 0 };
+  }
+  if (evenRatio >= 0.7 && oddRatio <= 0.1) {
+    return { encoding: "be", offset: 0 };
+  }
+  return null;
+}
+
+function decodeUtf16(bytes, detected) {
+  const content = bytes.subarray(detected.offset);
+  if (content.length % 2 !== 0)
+    fail("UTF-16 input has an incomplete code unit");
+  if (detected.encoding === "le") return content.toString("utf16le");
+  const swapped = Buffer.from(content);
+  for (let index = 0; index < swapped.length; index += 2) {
+    const first = swapped[index];
+    swapped[index] = swapped[index + 1];
+    swapped[index + 1] = first;
+  }
+  return swapped.toString("utf16le");
+}
+
+function textsForInspection(bytes, logicalPath) {
+  const requiresJson = logicalPath.toLowerCase().endsWith(".json");
+  let strictUtf8Text;
+  try {
+    strictUtf8Text = strictUtf8Decoder.decode(bytes);
+  } catch {
+    if (requiresJson) fail("JSON input is malformed, ambiguous or not UTF-8");
+  }
+  const semanticUtf8 =
+    strictUtf8Text === undefined
+      ? null
+      : semanticJsonTexts(strictUtf8Text, requiresJson);
+  const texts = semanticUtf8 ?? [strictUtf8Text ?? bytes.toString("utf8")];
+  const utf16 = likelyUtf16Encoding(bytes);
+  if (utf16) {
+    const decodedUtf16 = decodeUtf16(bytes, utf16);
+    const semanticUtf16 = semanticJsonTexts(decodedUtf16, false);
+    texts.push(...(semanticUtf16 ?? [decodedUtf16]));
+  }
+  return texts;
+}
+
 function countProhibitedData(bytes, logicalPath) {
   // Dependencias instaladas carregam metadados publicos de mantenedores
   // (inclusive e-mails em package.json e licencas). Elas nao sao massa do
@@ -139,37 +255,37 @@ function countProhibitedData(bytes, logicalPath) {
   // O detector de dados empresariais permanece ativo em todo o restante da
   // imagem, inclusive /app/apps, /app/packages e arquivos inesperados.
   if (isThirdPartyDependencyPath(logicalPath)) return 0;
-  const text = bytes.toString("utf8");
   let count = 0;
-
-  count += countMatches(
-    /(?<!\d)(?:\d{3}[.\s-]?\d{3}[.\s-]?\d{3}[-\s]?\d{2})(?!\d)/gu,
-    text,
-    (value) => hasValidCheckDigits(value, 9),
-  );
-  count += countMatches(
-    /(?<!\d)(?:\d{2}[.\s-]?\d{3}[.\s-]?\d{3}[\s/]?\d{4}[-\s]?\d{2})(?!\d)/gu,
-    text,
-    (value) => hasValidCheckDigits(value, 12),
-  );
-  count += countMatches(
-    /\b[A-Z0-9._%+-]+@(?:[A-Z0-9-]+\.)+[A-Z]{2,63}\b/giu,
-    text,
-    (value) => {
-      const domain = value.split("@").at(-1)?.toLowerCase() ?? "";
-      return !(
-        reservedEmailDomains.has(domain) ||
-        domain.endsWith(".example") ||
-        domain.endsWith(".invalid") ||
-        domain.endsWith(".test")
-      );
-    },
-  );
-  count += countMatches(/\bCID\s*[:=-]\s*[A-Z]\d{2}(?:\.\d)?\b/giu, text);
-  count += countMatches(
-    /\bCRM(?:[- /]?[A-Z]{2})?\s*[:=-]\s*\d{4,8}\b/giu,
-    text,
-  );
+  for (const text of textsForInspection(bytes, logicalPath)) {
+    count += countMatches(
+      /(?<!\d)(?:\d{3}[.\s-]?\d{3}[.\s-]?\d{3}[-\s]?\d{2})(?!\d)/gu,
+      text,
+      (value) => hasValidCheckDigits(value, 9),
+    );
+    count += countMatches(
+      /(?<!\d)(?:\d{2}[.\s-]?\d{3}[.\s-]?\d{3}[\s/]?\d{4}[-\s]?\d{2})(?!\d)/gu,
+      text,
+      (value) => hasValidCheckDigits(value, 12),
+    );
+    count += countMatches(
+      /\b[A-Z0-9._%+-]+@(?:[A-Z0-9-]+\.)+[A-Z]{2,63}\b/giu,
+      text,
+      (value) => {
+        const domain = value.split("@").at(-1)?.toLowerCase() ?? "";
+        return !(
+          reservedEmailDomains.has(domain) ||
+          domain.endsWith(".example") ||
+          domain.endsWith(".invalid") ||
+          domain.endsWith(".test")
+        );
+      },
+    );
+    count += countMatches(/\bCID\s*[:=-]\s*[A-Z]\d{2}(?:\.\d)?\b/giu, text);
+    count += countMatches(
+      /\bCRM(?:[- /]?[A-Z]{2})?\s*[:=-]\s*\d{4,8}\b/giu,
+      text,
+    );
+  }
   return count;
 }
 

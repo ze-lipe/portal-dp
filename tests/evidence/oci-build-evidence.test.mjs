@@ -1,11 +1,38 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import test from "node:test";
 
-import { createOciBuildEvidence } from "../../scripts/write-oci-build-evidence.mjs";
+import {
+  createOciBuildEvidence,
+  expectedDockerfileFrontend,
+  expectedRuntimeBase,
+} from "../../scripts/write-oci-build-evidence.mjs";
 
 const expectedBuilderId =
   "https://github.com/ze-lipe/portal-dp/actions/runs/123456789";
+const root = resolve(import.meta.dirname, "../..");
+const expectedRuntimeDigest = expectedRuntimeBase.slice(
+  expectedRuntimeBase.indexOf("@sha256:") + "@sha256:".length,
+);
+const expectedDockerfileFrontendDigest = expectedDockerfileFrontend.slice(
+  expectedDockerfileFrontend.indexOf("@sha256:") + "@sha256:".length,
+);
+
+function dockerfileBytes(runtimeBase = expectedRuntimeBase) {
+  return Buffer.from(
+    [
+      `# syntax=${expectedDockerfileFrontend}`,
+      "FROM node:24-bookworm-slim AS build",
+      "RUN echo build",
+      `FROM ${runtimeBase} AS runtime`,
+      `LABEL org.opencontainers.image.base.name="${expectedRuntimeBase}"`,
+      'CMD ["app.js"]',
+      "",
+    ].join("\n"),
+  );
+}
 
 function digest(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
@@ -15,12 +42,15 @@ function jsonBytes(value) {
   return Buffer.from(JSON.stringify(value));
 }
 
-function fixture() {
+function fixture({ runtimeBaseLabel = expectedRuntimeBase } = {}) {
   const configBytes = jsonBytes({
     architecture: "amd64",
     os: "linux",
     config: {
       Env: ["NODE_ENV=production"],
+      Labels: {
+        "org.opencontainers.image.base.name": runtimeBaseLabel,
+      },
       WorkingDir: "/workspace",
     },
   });
@@ -52,6 +82,28 @@ function fixture() {
       buildDefinition: {
         buildType:
           "https://github.com/moby/buildkit/blob/master/docs/attestations/slsa-definitions.md",
+        externalParameters: {
+          configSource: { path: "Dockerfile" },
+          request: {
+            frontend: "gateway.v0",
+            args: { source: expectedDockerfileFrontend },
+            locals: [{ name: "context" }, { name: "dockerfile" }],
+          },
+        },
+        resolvedDependencies: [
+          {
+            uri:
+              "pkg:docker/gcr.io/distroless/nodejs24-debian13@nonroot" +
+              `?digest=sha256%3A${expectedRuntimeDigest}&platform=linux%2Famd64`,
+            digest: { sha256: expectedRuntimeDigest },
+          },
+          {
+            uri:
+              "pkg:docker/docker/dockerfile@1.7.1" +
+              `?digest=sha256%3A${expectedDockerfileFrontendDigest}&platform=linux%2Famd64`,
+            digest: { sha256: expectedDockerfileFrontendDigest },
+          },
+        ],
       },
       runDetails: { builder: { id: expectedBuilderId } },
     },
@@ -251,6 +303,7 @@ async function buildFixtureReport(value, overrides = {}) {
   const runtimeImageDigest = value.runtimeImageDigest ?? value.buildDigest;
   return createOciBuildEvidence({
     buildDigest: value.buildDigest,
+    dockerfileBytes: dockerfileBytes(),
     localImageId: value.localImageId,
     ociArchiveSha256: "c".repeat(64),
     expectedBuilderId,
@@ -277,7 +330,14 @@ async function buildReport(overrides = {}) {
 
 test("vincula Buildx, imagem local e grafo OCI sem persistir metadados brutos", async () => {
   const report = await buildReport();
-  assert.equal(report.schemaVersion, 3);
+  assert.equal(report.schemaVersion, 4);
+  assert.equal(report.runtimeBase, expectedRuntimeBase);
+  assert.equal(report.dockerfileFrontend, expectedDockerfileFrontend);
+  assert.equal(report.dockerfileFrontendLinked, true);
+  assert.match(report.dockerfileSha256, /^[a-f0-9]{64}$/u);
+  assert.equal(report.dockerfileSourceLinked, true);
+  assert.equal(report.provenanceDependencyLinked, true);
+  assert.equal(report.runtimeBaseLabelLinked, true);
   assert.equal(report.ociImageManifestDigest, report.buildDigest);
   assert.equal(report.runtimeManifestDigest, report.buildDigest);
   assert.equal(report.ociIndex.buildDigestLinked, true);
@@ -300,6 +360,207 @@ test("vincula Buildx, imagem local e grafo OCI sem persistir metadados brutos", 
     "ociImageManifestDigest",
     "runtimeManifestDigest",
   ]);
+});
+
+test("aceita o Dockerfile real e registra seu SHA-256", async () => {
+  const source = await readFile(resolve(root, "Dockerfile"));
+  const report = await buildReport({ dockerfileBytes: source });
+  assert.equal(
+    report.dockerfileSha256,
+    createHash("sha256").update(source).digest("hex"),
+  );
+});
+
+test("rejeita Dockerfile com origem mutavel ou divergente do frontend", async () => {
+  const source = dockerfileBytes()
+    .toString("utf8")
+    .replace(
+      `# syntax=${expectedDockerfileFrontend}`,
+      "# syntax=docker/dockerfile:1.7.1",
+    );
+  await assert.rejects(
+    buildReport({ dockerfileBytes: Buffer.from(source) }),
+    /Dockerfile deve iniciar exatamente/u,
+  );
+});
+
+test("rejeita diretiva escape para manter a interpretacao inequivoca", async () => {
+  const source = dockerfileBytes()
+    .toString("utf8")
+    .replace(
+      `# syntax=${expectedDockerfileFrontend}\n`,
+      `# syntax=${expectedDockerfileFrontend}\n# escape=\`\n`,
+    );
+  await assert.rejects(
+    buildReport({ dockerfileBytes: Buffer.from(source) }),
+    /nao pode alterar o caractere de escape/u,
+  );
+});
+
+test("rejeita FROM e LABEL aparentes dentro de heredoc", async () => {
+  const source = [
+    `# syntax=${expectedDockerfileFrontend}`,
+    "FROM node:24-bookworm-slim AS build",
+    "RUN <<EOF",
+    `FROM ${expectedRuntimeBase} AS runtime`,
+    `LABEL org.opencontainers.image.base.name="${expectedRuntimeBase}"`,
+    "EOF",
+    "",
+  ].join("\n");
+  await assert.rejects(
+    buildReport({ dockerfileBytes: Buffer.from(source) }),
+    /nao pode usar heredoc/u,
+  );
+});
+
+test("rejeita ultimo FROM divergente mesmo quando a label esperada foi preservada", async () => {
+  await assert.rejects(
+    buildReport({
+      dockerfileBytes: dockerfileBytes(
+        "gcr.io/distroless/nodejs24-debian13:nonroot@sha256:" + "0".repeat(64),
+      ),
+    }),
+    /ultimo FROM do Dockerfile deve ser exatamente/u,
+  );
+});
+
+test("rejeita Dockerfile sem a label exata no estagio runtime", async () => {
+  const source = dockerfileBytes()
+    .toString("utf8")
+    .replace(
+      `LABEL org.opencontainers.image.base.name="${expectedRuntimeBase}"`,
+      "LABEL org.opencontainers.image.base.name=base-divergente",
+    );
+  await assert.rejects(
+    buildReport({ dockerfileBytes: Buffer.from(source) }),
+    /estagio runtime do Dockerfile deve declarar exatamente/u,
+  );
+});
+
+test("rejeita configuracao da imagem cuja label nao corresponde a base", async () => {
+  await assert.rejects(
+    buildFixtureReport(fixture({ runtimeBaseLabel: "base-divergente" })),
+    /label da base na configuracao da imagem diverge/u,
+  );
+});
+
+test("rejeita provenance sem o digest imutavel da base Distroless", async () => {
+  const value = fixture();
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ statement }) => {
+      delete statement.predicate.buildDefinition.resolvedDependencies[0].digest
+        .sha256;
+    },
+  );
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /nao comprova a dependencia Distroless fixada/u,
+  );
+});
+
+test("rejeita provenance que declara outra referencia com o mesmo digest", async () => {
+  const value = fixture();
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ statement }) => {
+      statement.predicate.buildDefinition.resolvedDependencies[0].uri =
+        "pkg:docker/gcr.io/exemplo/base@nonroot?platform=linux%2Famd64";
+    },
+  );
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /nao comprova a dependencia Distroless fixada/u,
+  );
+});
+
+test("rejeita PURL da base sem qualifier de digest", async () => {
+  const value = fixture();
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ statement }) => {
+      statement.predicate.buildDefinition.resolvedDependencies[0].uri =
+        "pkg:docker/gcr.io/distroless/nodejs24-debian13@nonroot?platform=linux%2Famd64";
+    },
+  );
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /nao comprova a dependencia Distroless fixada/u,
+  );
+});
+
+test("rejeita PURL do frontend Dockerfile sem qualifier de digest", async () => {
+  const value = fixture();
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ statement }) => {
+      statement.predicate.buildDefinition.resolvedDependencies[1].uri =
+        "pkg:docker/docker/dockerfile@1.7.1?platform=linux%2Famd64";
+    },
+  );
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /nao comprova o frontend Dockerfile fixado/u,
+  );
+});
+
+test("rejeita provenance com frontend interno em vez de gateway.v0", async () => {
+  const value = fixture();
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ statement }) => {
+      statement.predicate.buildDefinition.externalParameters.request.frontend =
+        "dockerfile.v0";
+    },
+  );
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /nao comprova o frontend Gateway imutavel/u,
+  );
+});
+
+test("rejeita provenance cujo gateway usa outra origem", async () => {
+  const value = fixture();
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ statement }) => {
+      statement.predicate.buildDefinition.externalParameters.request.args.source =
+        "docker/dockerfile:1.7.1";
+    },
+  );
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /nao comprova o frontend Gateway imutavel/u,
+  );
+});
+
+test("rejeita provenance que nao identifica o Dockerfile local", async () => {
+  const value = fixture();
+  mutateAttestation(
+    value,
+    "https://slsa.dev/provenance/v1",
+    ({ statement }) => {
+      statement.predicate.buildDefinition.externalParameters.configSource.path =
+        "Dockerfile.alternativo";
+    },
+  );
+
+  await assert.rejects(
+    buildFixtureReport(value),
+    /nao comprova configSource\.path=Dockerfile/u,
+  );
 });
 
 test("aceita metadata OCI sem config quando o grafo e o runtime comprovam o vinculo", async () => {
@@ -431,6 +692,7 @@ test("rejeita imagem local que nao e config alcancavel do build", async () => {
   await assert.rejects(
     createOciBuildEvidence({
       buildDigest: value.buildDigest,
+      dockerfileBytes: dockerfileBytes(),
       localImageId: unrelatedDigest,
       ociArchiveSha256: "e".repeat(64),
       expectedBuilderId,
@@ -509,6 +771,7 @@ test("rejeita arquivo OCI sem o payload de uma camada da imagem", async () => {
   await assert.rejects(
     createOciBuildEvidence({
       buildDigest: value.buildDigest,
+      dockerfileBytes: dockerfileBytes(),
       localImageId: value.localImageId,
       ociArchiveSha256: "b".repeat(64),
       expectedBuilderId,
@@ -634,6 +897,7 @@ test("rejeita buildDigest que nao pertence ao grafo OCI", async () => {
   await assert.rejects(
     createOciBuildEvidence({
       buildDigest: outsideDigest,
+      dockerfileBytes: dockerfileBytes(),
       localImageId: value.localImageId,
       ociArchiveSha256: "a".repeat(64),
       expectedBuilderId,

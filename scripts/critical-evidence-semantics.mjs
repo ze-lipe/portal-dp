@@ -8,11 +8,173 @@ import {
   validateImageSecretScanReport,
 } from "./secret-scan-contract.mjs";
 import {
+  inspectTrivyReport,
   validateTrivyReport,
   validateTrivyScanSummary,
 } from "./trivy-report-contract.mjs";
+import {
+  expectedDockerfileFrontend,
+  expectedRuntimeBase,
+} from "./write-oci-build-evidence.mjs";
 
 const root = resolve(import.meta.dirname, "..");
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function compareTrivyEntry(summaryEntry, inspected, scope) {
+  const commonFields = [
+    "approved",
+    "artifactName",
+    "artifactType",
+    "targetCount",
+    "findingCount",
+  ];
+  if (Object.hasOwn(summaryEntry, "acceptedRiskFindingCount")) {
+    commonFields.push("acceptedRiskFindingCount", "blockingFindingCount");
+  }
+  const scopeFields =
+    scope === "image"
+      ? [
+          "imageId",
+          "packageCount",
+          ...(Object.hasOwn(summaryEntry, "packageMetadataSanitized")
+            ? ["packageMetadataSanitized"]
+            : []),
+        ]
+      : ["commit", "requiredTargetType"];
+  if (
+    summaryEntry.structurallyValid !== true ||
+    summaryEntry.failureCode !== null ||
+    [...commonFields, ...scopeFields].some(
+      (field) => summaryEntry[field] !== inspected[field],
+    ) ||
+    (scope === "config" && summaryEntry.metadataSanitized !== true)
+  ) {
+    throw new Error(
+      `Trivy ${scope} summary diverges from its retained native report`,
+    );
+  }
+}
+
+/**
+ * Recalcula a decisao a partir dos dois relatorios nativos. O instante salvo
+ * no resumo e usado para preservar a validade historica da excecao; sealedAt
+ * impede que uma nova execucao seja retrodatada depois do vencimento.
+ */
+export function validateTrivyEvidenceCoherence(
+  summary,
+  imageReport,
+  configReport,
+  {
+    expectedImageReference,
+    expectedImageId,
+    expectedConfigCommit,
+    ociBuildEvidence,
+    requireApproved = false,
+    sealedAt,
+  } = {},
+) {
+  const validation = validateTrivyScanSummary(summary, {
+    expectedImageReference,
+    expectedImageId,
+    expectedConfigCommit,
+    requireApproved,
+  });
+  const reportsPresent = imageReport !== null && configReport !== null;
+  if (
+    summary.rawReportsPublished !== reportsPresent ||
+    (imageReport === null) !== (configReport === null)
+  ) {
+    throw new Error(
+      "Trivy summary diverges from the retained native report pair",
+    );
+  }
+  if (!reportsPresent) return validation;
+
+  const evaluatedAt =
+    summary.schemaVersion === 2 ? summary.evaluatedAt : imageReport.CreatedAt;
+  if (
+    summary.schemaVersion === 2 &&
+    Date.parse(evaluatedAt) !== Date.parse(imageReport.CreatedAt)
+  ) {
+    throw new Error(
+      "Trivy evaluatedAt diverges from the native report CreatedAt",
+    );
+  }
+  if (summary.schemaVersion === 2 && sealedAt !== undefined) {
+    const evaluatedTime = Date.parse(evaluatedAt);
+    const sealedTime = Date.parse(sealedAt);
+    if (
+      !Number.isFinite(sealedTime) ||
+      sealedTime < evaluatedTime ||
+      (summary.riskAcceptance !== null &&
+        (sealedTime < Date.parse(summary.riskAcceptance.validFrom) ||
+          sealedTime > Date.parse(summary.riskAcceptance.expiresAt)))
+    ) {
+      throw new Error(
+        "Trivy evaluatedAt is not coherent with the sealed run timestamp",
+      );
+    }
+  }
+
+  const image = inspectTrivyReport(imageReport, {
+    label: "trivy-image.json",
+    scope: "image",
+    expectedArtifactName: expectedImageReference,
+    expectedImageId,
+    evaluatedAt,
+    ociBuildEvidence,
+    requireSanitizedPackageMetadata: summary.schemaVersion === 2,
+  });
+  const config = inspectTrivyReport(configReport, {
+    label: "trivy-config.json",
+    scope: "config",
+    expectedArtifactName: ".",
+    expectedConfigCommit,
+    requireSanitizedConfigMetadata: true,
+  });
+  compareTrivyEntry(summary.reports.image, image, "image");
+  compareTrivyEntry(summary.reports.config, config, "config");
+  if (
+    summary.schemaVersion === 2 &&
+    canonicalJson(summary.riskAcceptance) !==
+      canonicalJson(image.riskAcceptance)
+  ) {
+    throw new Error(
+      "Trivy risk acceptance diverges from the retained native finding",
+    );
+  }
+  // Relatorios nativos so sao publicados quando a classificacao posterior os
+  // aprovou; assim, um resumo adulterado nao consegue legitimar um bloqueio.
+  validateTrivyReport(imageReport, {
+    label: "trivy-image.json",
+    scope: "image",
+    expectedArtifactName: expectedImageReference,
+    expectedImageId,
+    evaluatedAt,
+    ociBuildEvidence,
+    requireSanitizedPackageMetadata: summary.schemaVersion === 2,
+  });
+  validateTrivyReport(configReport, {
+    label: "trivy-config.json",
+    scope: "config",
+    expectedArtifactName: ".",
+    expectedConfigCommit,
+    requireSanitizedConfigMetadata: true,
+  });
+  return validation;
+}
 
 export async function validateCriticalEvidenceSemantics(
   run,
@@ -265,7 +427,9 @@ export async function validateCriticalEvidenceSemantics(
         throw new Error("Semgrep report contains errors or blocking findings");
       }
     } else if (name === "trivy-image.json" || name === "trivy-config.json") {
-      validateTrivyReport(report, {
+      // Nesta primeira passagem validamos a estrutura. A decisao e recalculada
+      // adiante, em conjunto com o resumo e com o instante historico selado.
+      inspectTrivyReport(report, {
         label: name,
         scope: name === "trivy-image.json" ? "image" : "config",
         requireSanitizedConfigMetadata: name === "trivy-config.json",
@@ -409,11 +573,18 @@ export async function validateCriticalEvidenceSemantics(
       const expectedTopLevelKeys = [
         "buildDigest",
         "builder",
+        "dockerfileFrontend",
+        "dockerfileFrontendLinked",
+        "dockerfileSha256",
+        "dockerfileSourceLinked",
         "localImageId",
         "metadata",
         "ociArchiveSha256",
         "ociImageManifestDigest",
         "ociIndex",
+        "provenanceDependencyLinked",
+        "runtimeBase",
+        "runtimeBaseLabelLinked",
         "runtimeManifestDigest",
         "sanitization",
         "schemaVersion",
@@ -439,10 +610,17 @@ export async function validateCriticalEvidenceSemantics(
         "runtimeConfigLinked",
       ];
       if (
-        report.schemaVersion !== 3 ||
+        report.schemaVersion !== 4 ||
         report.builder !== "docker/build-push-action" ||
         !/^sha256:[a-f0-9]{64}$/u.test(report.buildDigest ?? "") ||
+        report.dockerfileFrontend !== expectedDockerfileFrontend ||
+        report.dockerfileFrontendLinked !== true ||
+        !/^[a-f0-9]{64}$/u.test(report.dockerfileSha256 ?? "") ||
+        report.dockerfileSourceLinked !== true ||
         !/^sha256:[a-f0-9]{64}$/u.test(report.ociImageManifestDigest ?? "") ||
+        report.provenanceDependencyLinked !== true ||
+        report.runtimeBase !== expectedRuntimeBase ||
+        report.runtimeBaseLabelLinked !== true ||
         !/^sha256:[a-f0-9]{64}$/u.test(report.runtimeManifestDigest ?? "") ||
         !/^sha256:[a-f0-9]{64}$/u.test(report.localImageId ?? "") ||
         !/^[a-f0-9]{64}$/u.test(report.ociArchiveSha256 ?? "") ||
@@ -547,13 +725,22 @@ export async function validateCriticalEvidenceSemantics(
       : `portal-dp:${executionRevision}`;
   const linkedImageId = ociBuildLinkReport?.localImageId;
   if (trivySummaryReport !== null) {
-    validateTrivyScanSummary(trivySummaryReport, {
-      expectedImageReference,
-      expectedImageId: linkedImageId ?? trivySummaryReport.expectedImageId,
-      expectedConfigCommit:
-        executionRevision ?? trivySummaryReport.expectedConfigCommit,
-      requireApproved: requireCompleteSet,
-    });
+    validateTrivyEvidenceCoherence(
+      trivySummaryReport,
+      trivyImageReport,
+      trivyConfigReport,
+      {
+        expectedImageReference,
+        expectedImageId: linkedImageId ?? trivySummaryReport.expectedImageId,
+        expectedConfigCommit:
+          executionRevision ?? trivySummaryReport.expectedConfigCommit,
+        ociBuildEvidence: ociBuildLinkReport,
+        requireApproved: requireCompleteSet,
+        sealedAt: run.generatedAt,
+      },
+    );
+  } else if (trivyImageReport !== null || trivyConfigReport !== null) {
+    throw new Error("retained Trivy reports require their decision summary");
   }
   if (imageSecretScanReport !== null) {
     validateImageSecretScanReport(
@@ -570,27 +757,6 @@ export async function validateCriticalEvidenceSemantics(
         "image secret scan does not match oci-build-link.localImageId",
       );
     }
-  }
-  if (trivyImageReport !== null) {
-    validateTrivyReport(trivyImageReport, {
-      label: "trivy-image.json",
-      scope: "image",
-      expectedArtifactName:
-        executionRevision === null
-          ? trivyImageReport.ArtifactName
-          : `portal-dp:${executionRevision}`,
-      expectedImageId: linkedImageId ?? trivyImageReport.Metadata?.ImageID,
-    });
-  }
-  if (trivyConfigReport !== null) {
-    validateTrivyReport(trivyConfigReport, {
-      label: "trivy-config.json",
-      scope: "config",
-      expectedArtifactName: ".",
-      expectedConfigCommit:
-        executionRevision ?? trivyConfigReport.Metadata?.Commit,
-      requireSanitizedConfigMetadata: true,
-    });
   }
   if (
     requireCompleteSet &&

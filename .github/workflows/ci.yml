@@ -306,6 +306,7 @@ jobs:
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
+          file: Dockerfile
           push: false
           provenance: mode=max,version=v1,builder-id=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           # O gerador tambem fica imutavel; a atualizacao exige revisao explicita.
@@ -325,6 +326,7 @@ jobs:
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
+          file: Dockerfile
           push: false
           load: true
           provenance: false
@@ -515,6 +517,7 @@ jobs:
           TRIVY_SCAN_EXPECTED_IMAGE: portal-dp:${{ github.sha }}
           TRIVY_SCAN_EXPECTED_IMAGE_ID: ${{ steps.local-image.outputs.image-id }}
           TRIVY_SCAN_EXPECTED_CONFIG_COMMIT: ${{ github.sha }}
+          TRIVY_SCAN_OCI_BUILD_LINK_PATH: evidencias/resultados/oci-build-link.json
           TRIVY_SCAN_IMAGE_STEP_OUTCOME: ${{ steps.trivy-image.outcome }}
           TRIVY_SCAN_CONFIG_STEP_OUTCOME: ${{ steps.trivy-config.outcome }}
           TRIVY_SCAN_OUTPUT_PATH: evidencias/resumos-seguranca/trivy-scan-result.json

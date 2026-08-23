@@ -91,8 +91,8 @@ async function runScenario({
         `fileCount=${sealedCoverage?.fileCount ?? 7}`,
         `byteCount=${sealedCoverage?.byteCount ?? 4096}`,
         `aggregateSha256=${sealedCoverage?.aggregateSha256 ?? "a".repeat(64)}`,
-        "prohibitedDataPolicy=PORTAL_DP_PROHIBITED_DATA_V2",
-        "prohibitedDataArchiveInspection=FAIL_CLOSED_TAR_ZIP_OCI_V1",
+        "prohibitedDataPolicy=PORTAL_DP_PROHIBITED_DATA_V3",
+        "prohibitedDataArchiveInspection=FAIL_CLOSED_TAR_ZIP_OCI_V2",
         "prohibitedDataArchiveMaxDepth=4",
         "prohibitedDataArchiveMaxEntries=50000",
         "prohibitedDataArchiveMaxEntryBytes=268435456",
@@ -167,7 +167,7 @@ test("aprova pacote, fixtures e evidências geradas somente após varredura limp
   assert.equal(scenario.report.prohibitedDataFindingCount, 0);
   assert.equal(
     scenario.report.prohibitedDataArchiveInspection,
-    "FAIL_CLOSED_TAR_ZIP_OCI_V1",
+    "FAIL_CLOSED_TAR_ZIP_OCI_V2",
   );
   assert.equal(scenario.report.prohibitedDataArchiveEntryCount, 3);
   assert.equal(scenario.report.prohibitedDataExpandedByteCount, 1536);

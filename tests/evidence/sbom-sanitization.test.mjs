@@ -161,6 +161,7 @@ test("remove somente e-mails de autores terceiros e preserva o inventario", asyn
     assert.deepEqual(JSON.parse(result.stdout), {
       sanitized: true,
       documentCount: 11,
+      regeneratedSerialNumberCount: 11,
       redactedEmailCount: 3,
       normalizedVcsReferenceCount: 3,
     });
@@ -211,6 +212,42 @@ test("remove somente e-mails de autores terceiros e preserva o inventario", asyn
       inspection,
     );
     assert.equal(inspection.findingCount, 4);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("regenera UUID aleatorio que coincide com CPF e preserva unicidade", async () => {
+  const cpf = "52998224725";
+  const documents = Array.from({ length: 11 }, (_, index) => sbom(index));
+  documents[0].serialNumber = `urn:uuid:12345678-1234-4123-8123-a${cpf}`;
+  const directory = await fixture(documents);
+  try {
+    const result = JSON.parse((await run(directory)).stdout);
+    assert.equal(result.regeneratedSerialNumberCount, 11);
+
+    const serialNumbers = [];
+    for (const index of documents.keys()) {
+      const output = await readFile(
+        join(directory, `${String(index).padStart(2, "0")}.cdx.json`),
+        "utf8",
+      );
+      const document = JSON.parse(output);
+      assert.match(
+        document.serialNumber,
+        /^urn:uuid:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu,
+      );
+      assert.equal(document.serialNumber.includes(cpf), false);
+      const inspection = createProhibitedDataInspection();
+      inspectProhibitedData(
+        Buffer.from(document.serialNumber),
+        "cyclonedx-serial.txt",
+        inspection,
+      );
+      assert.equal(inspection.findingCount, 0);
+      serialNumbers.push(document.serialNumber);
+    }
+    assert.equal(new Set(serialNumbers).size, 11);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

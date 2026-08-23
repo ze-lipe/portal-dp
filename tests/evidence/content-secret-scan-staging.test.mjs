@@ -104,6 +104,21 @@ async function fixture() {
   };
 }
 
+function cycloneDxInventory(component) {
+  return {
+    $schema: "http://cyclonedx.org/schema/bom-1.7.schema.json",
+    bomFormat: "CycloneDX",
+    specVersion: "1.7",
+    serialNumber: "urn:uuid:12345678-1234-4123-8123-123456789abc",
+    version: 1,
+    metadata: {
+      component: { type: "application", name: "portal-dp", version: "0.0.0" },
+    },
+    components: [component],
+    dependencies: [],
+  };
+}
+
 async function stage(paths) {
   return execute(
     process.execPath,
@@ -190,15 +205,153 @@ test("não isenta e-mail real apenas porque o arquivo é um SBOM CycloneDX", asy
     await writeFile(join(paths.root, "build/app.js"), "export default 1;\n");
     await writeFile(
       join(paths.root, "evidence/inventory.cdx.json"),
-      JSON.stringify({
-        bomFormat: "CycloneDX",
-        metadata: { contact: ["responsavel", "empresa.com.br"].join("@") },
-      }),
+      JSON.stringify(
+        cycloneDxInventory({
+          description: ["responsavel", "empresa.com.br"].join("@"),
+        }),
+      ),
     );
     await writeFile(
       join(paths.root, "fixtures/data.json"),
       '{"synthetic":true}\n',
     );
+
+    await stage(paths);
+    const proof = await readFile(paths.proof, "utf8");
+    assert.match(proof, /^prohibitedDataFindingCount=1$/mu);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+    await rm(paths.temporary, { recursive: true, force: true });
+  }
+});
+
+test("não isenta CPF válido colocado no serial UUID de um CycloneDX", async () => {
+  const paths = await fixture();
+  try {
+    const cpf = "52998224725";
+    const inventory = cycloneDxInventory({ name: "componente" });
+    inventory.serialNumber = `urn:uuid:12345678-1234-4123-8123-a${cpf}`;
+    await writeFile(join(paths.root, "build/app.js"), "export default 1;\n");
+    await writeFile(
+      join(paths.root, "evidence/inventory.cdx.json"),
+      JSON.stringify(inventory),
+    );
+    await writeFile(
+      join(paths.root, "fixtures/data.json"),
+      '{"synthetic":true}\n',
+    );
+
+    await stage(paths);
+    const proof = await readFile(paths.proof, "utf8");
+    assert.match(proof, /^prohibitedDataFindingCount=1$/mu);
+    assert.equal(proof.includes(cpf), false);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+    await rm(paths.temporary, { recursive: true, force: true });
+  }
+});
+
+test("não isenta hash nem texto livre dentro de CycloneDX válido", async () => {
+  const paths = await fixture();
+  try {
+    const cpf = "52998224725";
+    const collidingSha512 = `${"a".repeat(10)}${cpf}${"b".repeat(107)}`;
+    await writeFile(join(paths.root, "build/app.js"), "export default 1;\n");
+    await writeFile(
+      join(paths.root, "evidence/free-field.cdx.json"),
+      JSON.stringify(
+        cycloneDxInventory({
+          description: collidingSha512,
+          externalReferences: [
+            {
+              type: "distribution",
+              url: "https://registry.npmjs.org/example/-/example-1.0.0.tgz",
+              hashes: [{ alg: "SHA-512", content: collidingSha512 }],
+            },
+          ],
+        }),
+      ),
+    );
+    await writeFile(join(paths.root, "fixtures/data.json"), '{"ok":true}\n');
+
+    await stage(paths);
+    const proof = await readFile(paths.proof, "utf8");
+    assert.match(proof, /^prohibitedDataFindingCount=2$/mu);
+    assert.equal(proof.includes(cpf), false);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+    await rm(paths.temporary, { recursive: true, force: true });
+  }
+});
+
+test("detecta JSON por conteúdo e normaliza escapes Unicode sem confiar na extensão", async () => {
+  const paths = await fixture();
+  try {
+    const escapedCpf =
+      "\\u0035\\u0032\\u0039\\u0039\\u0038\\u0032\\u0032\\u0034\\u0037\\u0032\\u0035";
+    await writeFile(join(paths.root, "build/app.js"), "export default 1;\n");
+    await writeFile(
+      join(paths.root, "evidence/escaped.txt"),
+      `{"value":"${escapedCpf}"}`,
+    );
+    await writeFile(join(paths.root, "fixtures/data.json"), '{"ok":true}\n');
+
+    await stage(paths);
+    const proof = await readFile(paths.proof, "utf8");
+    assert.match(proof, /^prohibitedDataFindingCount=1$/mu);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+    await rm(paths.temporary, { recursive: true, force: true });
+  }
+});
+
+test("examina chaves e valores JSON após decodificar controles escapados", async () => {
+  const paths = await fixture();
+  try {
+    const cpfWithControls = "529\\n982\\t247\\n25";
+    await writeFile(join(paths.root, "build/app.js"), "export default 1;\n");
+    await writeFile(
+      join(paths.root, "evidence/controls.json"),
+      `{"value":"${cpfWithControls}","${cpfWithControls}":"chave"}`,
+    );
+    await writeFile(join(paths.root, "fixtures/data.json"), '{"ok":true}\n');
+
+    await stage(paths);
+    const proof = await readFile(paths.proof, "utf8");
+    assert.match(proof, /^prohibitedDataFindingCount=2$/mu);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+    await rm(paths.temporary, { recursive: true, force: true });
+  }
+});
+
+test("falha fechada para JSON com chave repetida", async () => {
+  const paths = await fixture();
+  try {
+    await writeFile(join(paths.root, "build/app.js"), "export default 1;\n");
+    await writeFile(join(paths.root, "evidence/result.txt"), "ok\n");
+    await writeFile(
+      join(paths.root, "fixtures/ambiguous.json"),
+      '{"value":"primeiro","value":"segundo"}',
+    );
+
+    await assert.rejects(stage(paths), /JSON input is malformed, ambiguous/u);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+    await rm(paths.temporary, { recursive: true, force: true });
+  }
+});
+
+test("detecta JSON UTF-16LE sem extensão e normaliza seus escapes Unicode", async () => {
+  const paths = await fixture();
+  try {
+    const escapedCpf = "529\\n982\\t247\\n25";
+    await writeFile(join(paths.root, "build/app.js"), "export default 1;\n");
+    await writeFile(
+      join(paths.root, "evidence/utf16-sem-extensao"),
+      Buffer.from(`{"value":"${escapedCpf}"}`, "utf16le"),
+    );
+    await writeFile(join(paths.root, "fixtures/data.json"), '{"ok":true}\n');
 
     await stage(paths);
     const proof = await readFile(paths.proof, "utf8");
@@ -238,12 +391,70 @@ test("inspeciona PII dentro de ZIP e de camada compactada em OCI", async () => {
     assert.match(proof, /^prohibitedDataFindingCount=5$/mu);
     assert.match(
       proof,
-      /^prohibitedDataArchiveInspection=FAIL_CLOSED_TAR_ZIP_OCI_V1$/mu,
+      /^prohibitedDataArchiveInspection=FAIL_CLOSED_TAR_ZIP_OCI_V2$/mu,
     );
     assert.match(proof, /^prohibitedDataArchiveEntryCount=5$/mu);
     for (const value of [cpf, cnpj, email, cid, crm]) {
       assert.equal(proof.includes(value), false);
     }
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+    await rm(paths.temporary, { recursive: true, force: true });
+  }
+});
+
+test("tolera fixture .gz inválida somente dentro de dependência de terceiro", async () => {
+  const paths = await fixture();
+  try {
+    const cpf = ["529", "982", "247"].join(".").concat("-25");
+    const layer = gzipSync(
+      tarArchive([
+        [
+          "app/node_modules/@fastify/static/test/fixtures/sample.gz",
+          Buffer.from("fixture publica sem assinatura gzip"),
+        ],
+        ["app/dados/documento.txt", Buffer.from(cpf)],
+      ]),
+    );
+    const oci = tarArchive([
+      ["oci-layout", Buffer.from('{"imageLayoutVersion":"1.0.0"}')],
+      ["index.json", Buffer.from('{"schemaVersion":2,"manifests":[]}')],
+      ["blobs/sha256/layer", layer],
+    ]);
+
+    await writeFile(join(paths.root, "build/app.js"), "export default 1;\n");
+    await writeFile(join(paths.root, "evidence/image.oci.tar"), oci);
+    await writeFile(join(paths.root, "fixtures/data.json"), '{"ok":true}\n');
+
+    await stage(paths);
+    const proof = await readFile(paths.proof, "utf8");
+    assert.match(proof, /^prohibitedDataFindingCount=1$/mu);
+    assert.equal(proof.includes(cpf), false);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+    await rm(paths.temporary, { recursive: true, force: true });
+  }
+});
+
+test("falha fechada para .gz aninhado inválido fora de dependência de terceiro", async () => {
+  const paths = await fixture();
+  try {
+    const layer = gzipSync(
+      tarArchive([
+        ["app/dados/documento.gz", Buffer.from("nao e um arquivo gzip")],
+      ]),
+    );
+    const oci = tarArchive([
+      ["oci-layout", Buffer.from('{"imageLayoutVersion":"1.0.0"}')],
+      ["index.json", Buffer.from('{"schemaVersion":2,"manifests":[]}')],
+      ["blobs/sha256/layer", layer],
+    ]);
+
+    await writeFile(join(paths.root, "build/app.js"), "export default 1;\n");
+    await writeFile(join(paths.root, "evidence/image.oci.tar"), oci);
+    await writeFile(join(paths.root, "fixtures/data.json"), '{"ok":true}\n');
+
+    await assert.rejects(stage(paths), /gzip input is malformed/u);
   } finally {
     await rm(paths.root, { recursive: true, force: true });
     await rm(paths.temporary, { recursive: true, force: true });
@@ -278,7 +489,7 @@ test("separa metadados publicos de dependencias dos dados da aplicacao na OCI", 
     const proof = await readFile(paths.proof, "utf8");
     assert.match(
       proof,
-      /^prohibitedDataPolicy=PORTAL_DP_PROHIBITED_DATA_V2$/mu,
+      /^prohibitedDataPolicy=PORTAL_DP_PROHIBITED_DATA_V3$/mu,
     );
     assert.match(proof, /^prohibitedDataFindingCount=1$/mu);
     assert.equal(proof.includes(maintainerEmail), false);
@@ -335,6 +546,23 @@ test("falha fechado para arquivo compactado malformado e expansão acima do limi
       await rm(paths.root, { recursive: true, force: true });
       await rm(paths.temporary, { recursive: true, force: true });
     }
+  }
+});
+
+test("continua falhando fechado para .gz malformado fornecido no topo", async () => {
+  const paths = await fixture();
+  try {
+    await writeFile(join(paths.root, "build/app.js"), "ok\n");
+    await writeFile(join(paths.root, "evidence/result.txt"), "ok\n");
+    await writeFile(
+      join(paths.root, "fixtures/payload.gz"),
+      "conteudo sem assinatura gzip\n",
+    );
+
+    await assert.rejects(stage(paths), /gzip input is malformed/u);
+  } finally {
+    await rm(paths.root, { recursive: true, force: true });
+    await rm(paths.temporary, { recursive: true, force: true });
   }
 });
 
